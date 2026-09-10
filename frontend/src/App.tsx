@@ -3,31 +3,72 @@ import { Header } from './components/Header';
 import { ReviewControls } from './components/ReviewControls';
 import { PushReadinessCard } from './components/PushReadinessCard';
 import { IssuesList } from './components/IssuesList';
+import { AcceptanceCriteriaSection } from './components/AcceptanceCriteriaSection';
 import { MissingTestsSection } from './components/MissingTestsSection';
 import { DiffViewer } from './components/DiffViewer';
+import { HistoryModal } from './components/HistoryModal';
 import { StandardsModal } from './components/StandardsModal';
 import { ConfigModal } from './components/ConfigModal';
 import { ReviewResult, ServerConfig } from './types/review';
-import { runReview, fetchStandards, fetchServerConfig } from './services/api';
-import { LayoutDashboard, FileCode, TestTube, History, BookOpen } from 'lucide-react';
+import { runReview, fetchStandards, fetchServerConfig, fetchReviewHistory } from './services/api';
+import {
+  LayoutDashboard,
+  CheckSquare,
+  TestTube,
+  FileCode,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 
 export const App: React.FC = () => {
   const [reviewResult, setReviewResult] = useState<ReviewResult | null>(null);
   const [currentDiff, setCurrentDiff] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'issues' | 'tests' | 'diff'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ac' | 'tests' | 'diff'>('overview');
   const [standards, setStandards] = useState<any[]>([]);
+  const [historySessions, setHistorySessions] = useState<any[]>([]);
   const [config, setConfig] = useState<ServerConfig | null>(null);
+
+  // Modals state
   const [isStandardsOpen, setIsStandardsOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Toast notifications
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const loadInitialData = async () => {
+    try {
+      const [cfg, stds, hist] = await Promise.allSettled([
+        fetchServerConfig(),
+        fetchStandards(),
+        fetchReviewHistory()
+      ]);
+
+      if (cfg.status === 'fulfilled') setConfig(cfg.value);
+      if (stds.status === 'fulfilled') setStandards(stds.value);
+      if (hist.status === 'fulfilled') setHistorySessions(hist.value);
+    } catch (err) {
+      console.error('Failed to load initial data:', err);
+    }
+  };
 
   useEffect(() => {
-    // Load initial configuration and standards
-    fetchServerConfig().then(setConfig).catch(console.error);
-    fetchStandards().then(setStandards).catch(console.error);
+    loadInitialData();
   }, []);
 
-  const handleRunReview = async (criteria: string, diff: string, language: string, framework: string) => {
+  const handleRunReview = async (
+    criteria: string,
+    diff: string,
+    language: string,
+    framework: string
+  ) => {
     setIsLoading(true);
     setCurrentDiff(diff);
     try {
@@ -41,29 +82,46 @@ export const App: React.FC = () => {
       });
       setReviewResult(result);
       setActiveTab('overview');
+      showToast('Pre-Push Review Completed Successfully');
+
+      // Refresh history
+      fetchReviewHistory().then(setHistorySessions).catch(console.error);
     } catch (err: any) {
-      alert(`Review Failed: ${err.message || err}`);
+      alert(`Review Evaluation Failed: ${err.message || err}`);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleSelectHistorySession = (loadedReview: ReviewResult) => {
+    setReviewResult(loadedReview);
+    if ((loadedReview as any).session?.git_diff) {
+      setCurrentDiff((loadedReview as any).session.git_diff);
+    }
+    setActiveTab('overview');
+    showToast(`Loaded Session: ${loadedReview.reviewMetadata?.sessionId?.slice(0, 8) || 'Historical'}`);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans">
+    <div className="app-container">
+      {/* Prime Header */}
       <Header
         config={config}
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenStandards={() => setIsStandardsOpen(true)}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        historyCount={historySessions.length}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-        {/* Review Trigger Controls */}
+      {/* Main Workspace View */}
+      <main className="main-content">
+        {/* Review Controls (Golden Scenarios & Inputs) */}
         <ReviewControls onRunReview={handleRunReview} isLoading={isLoading} />
 
-        {/* Results Section */}
+        {/* Results Panel */}
         {reviewResult && (
-          <div className="space-y-6">
-            {/* Top Push Readiness Verdict */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Top Push Readiness Verdict Hero */}
             <PushReadinessCard
               status={reviewResult.pushReadiness}
               riskLevel={reviewResult.riskLevel}
@@ -74,44 +132,49 @@ export const App: React.FC = () => {
               missingTestsCount={reviewResult.missingTestsCount}
               durationMs={reviewResult.reviewMetadata?.durationMs || 0}
               model={reviewResult.reviewMetadata?.model || 'LLM Agent'}
+              sessionId={reviewResult.reviewMetadata?.sessionId}
+              onTabSelect={(tab) => setActiveTab(tab)}
             />
 
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+            {/* Navigation Tabs Bar */}
+            <div className="tab-bar-root">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`text-xs px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
-                  activeTab === 'overview'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                }`}
+                className={`tab-nav-btn ${activeTab === 'overview' ? 'active' : ''}`}
               >
-                <LayoutDashboard className="w-4 h-4" />
-                Review Overview & Findings ({reviewResult.issues.length})
+                <LayoutDashboard size={15} />
+                <span>Findings & Remediation</span>
+                <span className="tab-counter-badge">{reviewResult.issues.length}</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('ac')}
+                className={`tab-nav-btn ${activeTab === 'ac' ? 'active' : ''}`}
+              >
+                <CheckSquare size={15} />
+                <span>Acceptance Criteria</span>
+                <span className="tab-counter-badge">
+                  {reviewResult.acceptanceCriteriaResults?.length || 0}
+                </span>
               </button>
 
               <button
                 onClick={() => setActiveTab('tests')}
-                className={`text-xs px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
-                  activeTab === 'tests'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                }`}
+                className={`tab-nav-btn ${activeTab === 'tests' ? 'active' : ''}`}
               >
-                <TestTube className="w-4 h-4" />
-                Missing Tests & Edge Cases ({reviewResult.missingTests.length})
+                <TestTube size={15} />
+                <span>Missing Tests & Edge Cases</span>
+                <span className="tab-counter-badge">
+                  {reviewResult.missingTests?.length || 0}
+                </span>
               </button>
 
               <button
                 onClick={() => setActiveTab('diff')}
-                className={`text-xs px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
-                  activeTab === 'diff'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900'
-                }`}
+                className={`tab-nav-btn ${activeTab === 'diff' ? 'active' : ''}`}
               >
-                <FileCode className="w-4 h-4" />
-                Visual Diff Inspector
+                <FileCode size={15} />
+                <span>Visual Diff Inspector</span>
               </button>
             </div>
 
@@ -120,18 +183,36 @@ export const App: React.FC = () => {
               <IssuesList issues={reviewResult.issues} />
             )}
 
+            {activeTab === 'ac' && (
+              <AcceptanceCriteriaSection
+                criteriaResults={reviewResult.acceptanceCriteriaResults || []}
+              />
+            )}
+
             {activeTab === 'tests' && (
-              <MissingTestsSection missingTests={reviewResult.missingTests} />
+              <MissingTestsSection
+                missingTests={reviewResult.missingTests || []}
+              />
             )}
 
             {activeTab === 'diff' && (
-              <DiffViewer diffText={currentDiff} issues={reviewResult.issues} />
+              <DiffViewer
+                diffText={currentDiff}
+                issues={reviewResult.issues}
+              />
             )}
           </div>
         )}
       </main>
 
-      {/* Modals */}
+      {/* Modals & Dialogs */}
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        sessions={historySessions}
+        onSelectSession={handleSelectHistorySession}
+      />
+
       <StandardsModal
         isOpen={isStandardsOpen}
         onClose={() => setIsStandardsOpen(false)}
@@ -145,9 +226,19 @@ export const App: React.FC = () => {
         onConfigUpdated={(newCfg) => setConfig(newCfg)}
       />
 
+      {/* Toast Notification Container */}
+      {toastMessage && (
+        <div className="toast-container">
+          <div className="toast-item">
+            <Sparkles size={16} color="#818cf8" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
-        AI Code Review Agent — Enterprise Pre-Push Gatekeeper & Advisory Engine (Python Flask + React + MySQL)
+      <footer className="footer-root">
+        AI Code Review Agent — Enterprise Pre-Push Gatekeeper & Advisory Engine (Python Flask + MySQL + React)
       </footer>
     </div>
   );

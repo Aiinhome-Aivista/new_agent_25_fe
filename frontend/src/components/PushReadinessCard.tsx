@@ -1,5 +1,19 @@
-import React from 'react';
-import { ShieldCheck, AlertTriangle, XCircle, HelpCircle, CheckCircle2, AlertOctagon } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  ShieldCheck,
+  AlertTriangle,
+  XCircle,
+  HelpCircle,
+  CheckCircle2,
+  AlertOctagon,
+  Copy,
+  Check,
+  Download,
+  Share2,
+  Clock,
+  Cpu,
+  Hash
+} from 'lucide-react';
 import { PushReadinessStatus, RiskLevel } from '../types/review';
 
 interface PushReadinessCardProps {
@@ -12,6 +26,8 @@ interface PushReadinessCardProps {
   missingTestsCount: number;
   durationMs: number;
   model: string;
+  sessionId?: string;
+  onTabSelect?: (tab: 'overview' | 'ac' | 'tests' | 'diff') => void;
 }
 
 export const PushReadinessCard: React.FC<PushReadinessCardProps> = ({
@@ -23,42 +39,42 @@ export const PushReadinessCard: React.FC<PushReadinessCardProps> = ({
   passedChecksCount,
   missingTestsCount,
   durationMs,
-  model
+  model,
+  sessionId,
+  onTabSelect
 }) => {
+  const [copiedPr, setCopiedPr] = useState(false);
+
   const getVerdictDetails = () => {
     switch (status) {
       case 'READY':
         return {
           title: 'READY TO PUSH',
-          subtitle: 'All deterministic quality gates, security baselines, and tests passed cleanly.',
-          badgeClass: 'badge-ready',
-          icon: <ShieldCheck className="w-8 h-8 text-emerald-400" />,
-          borderGlow: 'border-emerald-500/50 shadow-emerald-500/20 shadow-xl'
+          subtitle: 'All deterministic quality gates, security baselines, and test scenarios passed successfully.',
+          heroClass: 'verdict-hero verdict-hero-ready',
+          icon: <ShieldCheck size={32} color="#10b981" />
         };
       case 'MINOR_FIXES_REQUIRED':
         return {
           title: 'MINOR FIXES REQUIRED',
-          subtitle: 'Non-blocking recommendations or missing test scenarios were identified.',
-          badgeClass: 'badge-warning',
-          icon: <AlertTriangle className="w-8 h-8 text-amber-400" />,
-          borderGlow: 'border-amber-500/50 shadow-amber-500/20 shadow-xl'
+          subtitle: 'Non-blocking improvements, standards alignment, or optional test coverage suggested.',
+          heroClass: 'verdict-hero verdict-hero-warning',
+          icon: <AlertTriangle size={32} color="#f59e0b" />
         };
       case 'DO_NOT_PUSH':
         return {
           title: 'DO NOT PUSH — GATE BLOCKED',
           subtitle: 'Critical security vulnerability, policy violation, or failed mandatory criterion detected.',
-          badgeClass: 'badge-danger',
-          icon: <XCircle className="w-8 h-8 text-rose-500" />,
-          borderGlow: 'border-rose-500/60 shadow-rose-500/25 shadow-2xl'
+          heroClass: 'verdict-hero verdict-hero-blocked',
+          icon: <XCircle size={32} color="#f43f5e" />
         };
       case 'LIMITED_REVIEW':
       default:
         return {
           title: 'LIMITED REVIEW',
-          subtitle: 'Review ran with partial context or missing acceptance criteria.',
-          badgeClass: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-          icon: <HelpCircle className="w-8 h-8 text-blue-400" />,
-          borderGlow: 'border-blue-500/30'
+          subtitle: 'Review executed with partial context or missing acceptance criteria.',
+          heroClass: 'verdict-hero verdict-hero-limited',
+          icon: <HelpCircle size={32} color="#06b6d4" />
         };
     }
   };
@@ -68,79 +84,148 @@ export const PushReadinessCard: React.FC<PushReadinessCardProps> = ({
   const getRiskBadge = () => {
     switch (riskLevel) {
       case 'LOW':
-        return <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/30">LOW RISK</span>;
+        return <span className="risk-level-badge risk-level-low">LOW RISK</span>;
       case 'MEDIUM':
-        return <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 font-semibold border border-amber-500/30">MEDIUM RISK</span>;
+        return <span className="risk-level-badge risk-level-medium">MEDIUM RISK</span>;
       case 'HIGH':
-        return <span className="text-xs px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-400 font-semibold border border-orange-500/40">HIGH RISK</span>;
+        return <span className="risk-level-badge risk-level-high">HIGH RISK</span>;
       case 'CRITICAL':
-        return <span className="text-xs px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 font-bold border border-rose-500/50 animate-pulse">CRITICAL RISK</span>;
+        return <span className="risk-level-badge risk-level-critical">CRITICAL RISK</span>;
       default:
-        return <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400">UNKNOWN</span>;
+        return <span className="risk-level-badge" style={{ background: 'rgba(255,255,255,0.08)' }}>UNKNOWN</span>;
     }
   };
 
+  const handleCopyPrComment = () => {
+    const prComment = `## 🛡️ AI Code Review Agent — Gate Verdict: **${verdict.title}**
+**Risk Level:** ${riskLevel} | **Evaluator:** ${model} (${(durationMs / 1000).toFixed(2)}s)
+
+### 📊 Summary
+${summary}
+
+### 🔍 Gatekeeper Metrics
+- 🚫 **Blocking Issues:** ${blockingCount}
+- ⚠️ **Warnings:** ${warningCount}
+- ✅ **Passed Checks:** ${passedChecksCount}
+- 🧪 **Missing Tests:** ${missingTestsCount}
+
+*Automated Pre-Push Gatekeeper Engine*`;
+
+    navigator.clipboard.writeText(prComment);
+    setCopiedPr(true);
+    setTimeout(() => setCopiedPr(false), 2500);
+  };
+
   return (
-    <div className={`glass-panel p-6 border ${verdict.borderGlow} transition-all duration-300`}>
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800">
+    <div className={verdict.heroClass}>
+      {/* Top Section */}
+      <div className="verdict-header">
+        <div className="verdict-badge-box">
+          <div className="verdict-icon-container">
             {verdict.icon}
           </div>
           <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-extrabold tracking-tight text-white">{verdict.title}</h2>
+            <div className="flex-row items-center gap-3">
+              <h2 className="verdict-title-text">{verdict.title}</h2>
               {getRiskBadge()}
             </div>
-            <p className="text-xs text-slate-300 mt-1">{verdict.subtitle}</p>
+            <p className="verdict-subtitle-text">{verdict.subtitle}</p>
           </div>
         </div>
 
-        {/* Execution Metadata */}
-        <div className="flex flex-col md:items-end text-xs text-slate-400 space-y-1">
-          <div>Evaluated by: <span className="text-indigo-300 font-medium">{model}</span></div>
-          <div>Execution time: <span className="text-slate-200 font-medium">{(durationMs / 1000).toFixed(2)}s</span></div>
+        {/* Execution Metadata & Export Actions */}
+        <div className="verdict-meta-strip">
+          <div className="flex-row items-center gap-2">
+            <Cpu size={12} />
+            <span>Model: <strong style={{ color: '#c7d2fe' }}>{model}</strong></span>
+          </div>
+          <div className="flex-row items-center gap-2">
+            <Clock size={12} />
+            <span>Latency: <strong style={{ color: '#f8fafc' }}>{(durationMs / 1000).toFixed(2)}s</strong></span>
+          </div>
+          {sessionId && (
+            <div className="flex-row items-center gap-2">
+              <Hash size={12} />
+              <span>Session: <strong style={{ color: 'var(--text-muted)' }}>{sessionId.slice(0, 8)}...</strong></span>
+            </div>
+          )}
+          <button
+            onClick={handleCopyPrComment}
+            className="btn-secondary"
+            style={{ marginTop: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.72rem' }}
+          >
+            {copiedPr ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+            <span>{copiedPr ? 'PR Summary Copied!' : 'Copy PR Comment'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Summary Narrative */}
-      <div className="my-4 p-3.5 rounded-lg bg-slate-950/60 border border-slate-800/80 text-xs text-slate-200 leading-relaxed font-sans">
-        <span className="font-semibold text-indigo-400 mr-2">Orchestrator Summary:</span>
+      {/* Summary Narrative Box */}
+      <div className="verdict-summary-box">
+        <strong style={{ color: '#818cf8', marginRight: '0.5rem' }}>
+          Orchestrator Verdict Summary:
+        </strong>
         {summary}
       </div>
 
-      {/* Metrics Counter Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-        <div className={`p-3 rounded-xl border ${blockingCount > 0 ? 'bg-rose-950/30 border-rose-800/60 text-rose-300' : 'bg-slate-900/50 border-slate-800 text-slate-400'}`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium">Blocking Issues</span>
-            <AlertOctagon className="w-4 h-4" />
+      {/* 4 Interactive KPI Metric Cards */}
+      <div className="grid-4">
+        <div
+          onClick={() => onTabSelect && onTabSelect('overview')}
+          className={`metric-kpi-card ${blockingCount > 0 ? 'danger' : ''}`}
+          style={{ cursor: onTabSelect ? 'pointer' : 'default' }}
+          title="Click to view issues"
+        >
+          <div className="metric-label">
+            <span>Blocking Issues</span>
+            <AlertOctagon size={16} color={blockingCount > 0 ? '#f43f5e' : 'var(--text-muted)'} />
           </div>
-          <p className="text-2xl font-bold mt-1 text-white">{blockingCount}</p>
+          <div className="metric-value" style={{ color: blockingCount > 0 ? '#fb7185' : '#ffffff' }}>
+            {blockingCount}
+          </div>
         </div>
 
-        <div className={`p-3 rounded-xl border ${warningCount > 0 ? 'bg-amber-950/25 border-amber-800/50 text-amber-300' : 'bg-slate-900/50 border-slate-800 text-slate-400'}`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium">Warnings</span>
-            <AlertTriangle className="w-4 h-4" />
+        <div
+          onClick={() => onTabSelect && onTabSelect('overview')}
+          className={`metric-kpi-card ${warningCount > 0 ? 'warning' : ''}`}
+          style={{ cursor: onTabSelect ? 'pointer' : 'default' }}
+          title="Click to view warnings"
+        >
+          <div className="metric-label">
+            <span>Warnings</span>
+            <AlertTriangle size={16} color={warningCount > 0 ? '#f59e0b' : 'var(--text-muted)'} />
           </div>
-          <p className="text-2xl font-bold mt-1 text-white">{warningCount}</p>
+          <div className="metric-value" style={{ color: warningCount > 0 ? '#fcd34d' : '#ffffff' }}>
+            {warningCount}
+          </div>
         </div>
 
-        <div className="p-3 rounded-xl border bg-slate-900/50 border-slate-800 text-emerald-400">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-300">Passed Checks</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div
+          className="metric-kpi-card success"
+          title="Security & compliance checks passed"
+        >
+          <div className="metric-label">
+            <span>Passed Checks</span>
+            <CheckCircle2 size={16} color="#10b981" />
           </div>
-          <p className="text-2xl font-bold mt-1 text-white">{passedChecksCount}</p>
+          <div className="metric-value" style={{ color: '#6ee7b7' }}>
+            {passedChecksCount}
+          </div>
         </div>
 
-        <div className={`p-3 rounded-xl border ${missingTestsCount > 0 ? 'bg-indigo-950/30 border-indigo-800/60 text-indigo-300' : 'bg-slate-900/50 border-slate-800 text-slate-400'}`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium">Missing Tests</span>
-            <ShieldCheck className="w-4 h-4" />
+        <div
+          onClick={() => onTabSelect && onTabSelect('tests')}
+          className={`metric-kpi-card ${missingTestsCount > 0 ? 'brand' : ''}`}
+          style={{ cursor: onTabSelect ? 'pointer' : 'default' }}
+          title="Click to view missing test scenarios"
+        >
+          <div className="metric-label">
+            <span>Missing Tests</span>
+            <ShieldCheck size={16} color={missingTestsCount > 0 ? '#818cf8' : 'var(--text-muted)'} />
           </div>
-          <p className="text-2xl font-bold mt-1 text-white">{missingTestsCount}</p>
+          <div className="metric-value" style={{ color: missingTestsCount > 0 ? '#a5b4fc' : '#ffffff' }}>
+            {missingTestsCount}
+          </div>
         </div>
       </div>
     </div>
