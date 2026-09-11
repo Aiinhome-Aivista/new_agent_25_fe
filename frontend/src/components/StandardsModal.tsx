@@ -32,7 +32,8 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
 
   if (!isOpen) return null;
 
-  const languages = ['ALL', 'java', 'python', 'javascript', 'typescript', 'general'];
+  const languages = ['ALL', ...Array.from(new Set(allStandards.map((s: any) => (s.language || 'general').toLowerCase())))];
+
 
   const filteredStandards = allStandards.filter((std) => {
     const matchesLang =

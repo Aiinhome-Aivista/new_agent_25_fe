@@ -81,3 +81,20 @@ export interface ServerConfig {
   strict_gatekeeper: boolean;
   redact_secrets: boolean;
 }
+
+export interface CodingStandardRule {
+  id?: string;
+  rule_code: string;
+  language: string;
+  framework?: string;
+  category: string;
+  title: string;
+  description: string;
+  bad_example?: string;
+  good_example?: string;
+  severity?: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL' | string;
+  is_blocking?: boolean;
+  version?: string;
+  created_at?: string;
+}
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
-import { ReviewControls } from './components/ReviewControls';
+import { RulesManager } from './components/RulesManager';
 import { PushReadinessCard } from './components/PushReadinessCard';
 import { IssuesList } from './components/IssuesList';
 import { AcceptanceCriteriaSection } from './components/AcceptanceCriteriaSection';
@@ -10,15 +10,13 @@ import { HistoryModal } from './components/HistoryModal';
 import { StandardsModal } from './components/StandardsModal';
 import { ConfigModal } from './components/ConfigModal';
 import { ReviewResult, ServerConfig } from './types/review';
-import { runReview, fetchStandards, fetchServerConfig, fetchReviewHistory } from './services/api';
+import { fetchStandards, fetchServerConfig, fetchReviewHistory } from './services/api';
 import {
   LayoutDashboard,
   CheckSquare,
   TestTube,
   FileCode,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle
+  Sparkles
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -63,36 +61,6 @@ export const App: React.FC = () => {
     loadInitialData();
   }, []);
 
-  const handleRunReview = async (
-    criteria: string,
-    diff: string,
-    language: string,
-    framework: string
-  ) => {
-    setIsLoading(true);
-    setCurrentDiff(diff);
-    try {
-      const result = await runReview({
-        git_diff: diff,
-        acceptance_criteria: criteria,
-        language,
-        framework,
-        repository_name: 'enterprise-workspace',
-        branch: 'feature/pre-push-gate'
-      });
-      setReviewResult(result);
-      setActiveTab('overview');
-      showToast('Pre-Push Review Completed Successfully');
-
-      // Refresh history
-      fetchReviewHistory().then(setHistorySessions).catch(console.error);
-    } catch (err: any) {
-      alert(`Review Evaluation Failed: ${err.message || err}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSelectHistorySession = (loadedReview: ReviewResult) => {
     setReviewResult(loadedReview);
     if ((loadedReview as any).session?.git_diff) {
@@ -115,8 +83,8 @@ export const App: React.FC = () => {
 
       {/* Main Workspace View */}
       <main className="main-content">
-        {/* Review Controls (Golden Scenarios & Inputs) */}
-        <ReviewControls onRunReview={handleRunReview} isLoading={isLoading} />
+        {/* Rules Ingestion & Language-Wise Standards Explorer */}
+        <RulesManager onNotify={(msg) => showToast(msg)} />
 
         {/* Results Panel */}
         {reviewResult && (
@@ -238,7 +206,7 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="footer-root">
-        AI Code Review Agent — Enterprise Pre-Push Gatekeeper & Advisory Engine (Python Flask + MySQL + React)
+        AI Code Review Agent — Enterprise Standards Ingestion & Pre-Push Gatekeeper Engine (Python Flask + MySQL + React)
       </footer>
     </div>
   );

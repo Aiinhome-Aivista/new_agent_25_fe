@@ -26,11 +26,11 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="brand-title-area">
           <h1>
-            AI Code Review Agent
-            <span className="brand-tag">Pre-Push Gatekeeper</span>
+            AI Standards & Code Governance
+            <span className="brand-tag">Rules Ingestion Hub</span>
           </h1>
           <p className="brand-subtitle">
-            Enterprise deterministic quality gates & grounded LLM reasoning
+            Ingest custom enterprise standards and view language-wise quality guardrails
           </p>
         </div>
       </div>
