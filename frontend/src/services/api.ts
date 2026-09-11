@@ -44,6 +44,31 @@ export async function fetchStandards(): Promise<any[]> {
   return data.standards || [];
 }
 
+export async function fetchAllStandards(): Promise<any[]> {
+  const response = await fetch(`${API_BASE}/api/v1/standards/all`);
+  if (!response.ok) throw new Error('Failed to fetch all standards');
+  const data = await response.json();
+  return data.standards || [];
+}
+
+export async function uploadStandardsBulk(rules: any[]): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/v1/standards/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rules)
+  });
+  if (!response.ok) throw new Error('Failed to upload standards');
+  return response.json();
+}
+
+export async function deleteStandard(ruleCode: string): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/v1/standards/${ruleCode}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error(`Failed to delete standard ${ruleCode}`);
+  return response.json();
+}
+
 export async function fetchServerConfig(): Promise<ServerConfig> {
   const response = await fetch(`${API_BASE}/api/v1/config`);
   if (!response.ok) throw new Error('Failed to fetch config');

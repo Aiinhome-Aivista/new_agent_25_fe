@@ -78,7 +78,6 @@ export interface ServerConfig {
   mysql_port: number;
   mysql_database: string;
   mysql_user: string;
-  is_sqlite_fallback: boolean;
   strict_gatekeeper: boolean;
   redact_secrets: boolean;
 }

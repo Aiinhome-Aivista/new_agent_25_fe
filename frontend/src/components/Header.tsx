@@ -54,9 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
           <Database size={14} color="#34d399" />
           <span>DB:</span>
           <strong style={{ color: '#34d399' }}>
-            {config?.is_sqlite_fallback
-              ? 'SQLite Cache'
-              : `MySQL (${config?.mysql_host ? config.mysql_host.split('.')[0] + '...' : 'Connected'})`}
+            {config?.mysql_host ? config.mysql_host.split('.')[0] + '...' : 'Connected'}
           </strong>
         </div>
 

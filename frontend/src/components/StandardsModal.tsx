@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
-import { X, BookOpen, Check, Shield, Search, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, BookOpen, Check, Shield, Search, Sparkles, Upload, Trash2 } from 'lucide-react';
+import { fetchAllStandards, uploadStandardsBulk, deleteStandard } from '../services/api';
 
 interface StandardsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  standards: any[];
+  // We can ignore the standards prop and fetch all dynamically
 }
 
-export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose, standards }) => {
+export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose }) => {
   const [search, setSearch] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('ALL');
+  const [allStandards, setAllStandards] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadStandards = async () => {
+    try {
+      const data = await fetchAllStandards();
+      setAllStandards(data);
+    } catch (err) {
+      console.error("Failed to load all standards", err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadStandards();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const languages = ['ALL', 'java', 'python', 'javascript'];
+  const languages = ['ALL', 'java', 'python', 'javascript', 'typescript', 'general'];
 
-  const filteredStandards = standards.filter((std) => {
+  const filteredStandards = allStandards.filter((std) => {
     const matchesLang =
       selectedLanguage === 'ALL' ||
       std.language?.toLowerCase() === selectedLanguage.toLowerCase();
@@ -29,15 +48,48 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose,
     return matchesLang && matchesSearch;
   });
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsLoading(true);
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const rulesArray = Array.isArray(json) ? json : [json];
+      
+      await uploadStandardsBulk(rulesArray);
+      await loadStandards();
+      alert("Rules uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload rules. Ensure it is a valid JSON array.");
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async (ruleCode: string) => {
+    if (!window.confirm(`Are you sure you want to delete rule ${ruleCode}?`)) return;
+    try {
+      await deleteStandard(ruleCode);
+      await loadStandards();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete rule.");
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-window" style={{ maxWidth: '820px' }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-window" style={{ maxWidth: '900px', height: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
           <div className="flex-row items-center gap-2">
             <BookOpen size={20} color="#818cf8" />
             <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff' }}>
-              Approved Enterprise Coding Standards (RAG Catalog)
+              Knowledge Base & Coding Standards
             </h3>
             <span className="tab-counter-badge">
               {filteredStandards.length} rules
@@ -48,7 +100,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose,
           </button>
         </div>
 
-        {/* Search & Language Filter */}
+        {/* Search, Filter & Actions */}
         <div style={{ padding: '1rem 1.75rem 0.25rem 1.75rem' }}>
           <div className="flex-row items-center justify-between gap-3" style={{ flexWrap: 'wrap' }}>
             <div
@@ -91,19 +143,48 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose,
                 </button>
               ))}
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input 
+                type="file" 
+                accept=".json" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                onChange={handleFileUpload}
+              />
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem' }}
+              >
+                <Upload size={14} style={{ marginRight: '0.3rem' }} />
+                Upload Rules (JSON)
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Body Standards List */}
-        <div className="modal-body">
+        <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            These vetted architectural & security guidelines are vectorized in the RAG pipeline to ground all automated agent recommendations.
+            These vetted architectural & security guidelines are vectorized in ChromaDB to ground all automated agent recommendations dynamically.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
             {filteredStandards.map((std, idx) => (
-              <div key={idx} className="issue-card" style={{ padding: '1.15rem' }}>
-                <div className="flex-row items-center justify-between gap-2" style={{ flexWrap: 'wrap' }}>
+              <div key={idx} className="issue-card" style={{ padding: '1.15rem', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+                  <button 
+                    onClick={() => handleDelete(std.rule_code)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    title="Delete Rule"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="flex-row items-center justify-between gap-2" style={{ flexWrap: 'wrap', paddingRight: '2rem' }}>
                   <div className="flex-row items-center gap-2">
                     <span
                       style={{
@@ -123,19 +204,31 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose,
                       {std.title}
                     </h4>
                   </div>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      fontFamily: 'var(--font-mono)',
-                      textTransform: 'uppercase',
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: '6px',
-                      background: 'rgba(255,255,255,0.06)',
-                      color: 'var(--text-secondary)'
-                    }}
-                  >
-                    {std.language} / {std.framework}
-                  </span>
+                  <div className="flex-row items-center gap-2">
+                    {std.created_at && (
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          color: 'var(--text-muted)'
+                        }}
+                      >
+                        {new Date(std.created_at).toLocaleString()}
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontFamily: 'var(--font-mono)',
+                        textTransform: 'uppercase',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '6px',
+                        background: 'rgba(255,255,255,0.06)',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      {std.language} / {std.framework}
+                    </span>
+                  </div>
                 </div>
 
                 <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>

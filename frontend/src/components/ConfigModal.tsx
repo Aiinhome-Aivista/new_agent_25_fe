@@ -166,7 +166,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
               <div>Host: <strong style={{ color: '#e2e8f0' }}>{config.mysql_host}:{config.mysql_port}</strong></div>
               <div>Database: <strong style={{ color: '#e2e8f0' }}>{config.mysql_database}</strong> (User: {config.mysql_user})</div>
-              <div>Status: <strong style={{ color: config.is_sqlite_fallback ? '#fcd34d' : '#34d399' }}>{config.is_sqlite_fallback ? 'SQLite Cache Active' : 'Connected to MySQL Cluster'}</strong></div>
+              <div>Status: <strong style={{ color: '#34d399' }}>Connected to MySQL Cluster</strong></div>
             </div>
           </div>
 
