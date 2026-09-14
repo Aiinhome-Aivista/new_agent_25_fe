@@ -49,13 +49,13 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   const getVerdictIcon = (verdict: string) => {
     switch (verdict) {
       case 'READY':
-        return <ShieldCheck size={16} color="#10b981" />;
+        return <ShieldCheck size={16} color="var(--color-ready)" />;
       case 'MINOR_FIXES_REQUIRED':
-        return <AlertTriangle size={16} color="#f59e0b" />;
+        return <AlertTriangle size={16} color="var(--color-warning)" />;
       case 'DO_NOT_PUSH':
-        return <XCircle size={16} color="#f43f5e" />;
+        return <XCircle size={16} color="var(--color-danger)" />;
       default:
-        return <ShieldCheck size={16} color="#06b6d4" />;
+        return <ShieldCheck size={16} color="var(--color-info)" />;
     }
   };
 
@@ -70,7 +70,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(16, 185, 129, 0.15)',
-              color: '#34d399',
+              color: 'var(--color-ready)',
               border: '1px solid rgba(16, 185, 129, 0.35)'
             }}
           >
@@ -86,7 +86,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(245, 158, 11, 0.15)',
-              color: '#fcd34d',
+              color: 'var(--color-warning)',
               border: '1px solid rgba(245, 158, 11, 0.35)'
             }}
           >
@@ -102,7 +102,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(244, 63, 94, 0.15)',
-              color: '#fb7185',
+              color: 'var(--color-danger)',
               border: '1px solid rgba(244, 63, 94, 0.35)'
             }}
           >
@@ -118,7 +118,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(6, 182, 212, 0.15)',
-              color: '#67e8f9',
+              color: 'var(--color-info)',
               border: '1px solid rgba(6, 182, 212, 0.35)'
             }}
           >
@@ -134,8 +134,8 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
         {/* Header */}
         <div className="modal-header">
           <div className="flex-row items-center gap-2">
-            <History size={20} color="#818cf8" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff' }}>
+            <History size={20} color="var(--primary)" />
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--foreground)' }}>
               Review Session History
             </h3>
             <span className="tab-counter-badge">
@@ -152,7 +152,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
           <div
             className="flex-row items-center gap-2"
             style={{
-              background: 'rgba(0,0,0,0.4)',
+              background: 'var(--background)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '10px',
               padding: '0.5rem 0.85rem'
@@ -165,11 +165,11 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                background: 'transparent',
+                background: 'var(--background)',
                 border: 'none',
                 outline: 'none',
                 fontSize: '0.78rem',
-                color: '#ffffff',
+                color: 'var(--foreground)',
                 width: '100%'
               }}
             />
@@ -181,7 +181,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
           {filteredSessions.length === 0 ? (
             <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               <Database size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem auto' }} />
-              <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+              <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--foreground)' }}>
                 No review sessions recorded
               </p>
               <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
@@ -195,14 +195,14 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                 return (
                   <div
                     key={s.id}
-                    className="issue-card"
+                    className="issue-card bg-sidebar border-border"
                     style={{ padding: '1rem 1.15rem' }}
                   >
                     <div className="flex-row items-center justify-between gap-2" style={{ flexWrap: 'wrap' }}>
                       <div className="flex-row items-center gap-2">
                         {getVerdictIcon(s.push_readiness)}
                         {getVerdictBadge(s.push_readiness)}
-                        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#ffffff' }}>
+                        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--foreground)' }}>
                           {s.repository_name || 'workspace'}
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
@@ -218,7 +218,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                           type="button"
                           onClick={() => handleLoadSession(s.id)}
                           disabled={isCurrentLoading}
-                          className="btn-prime"
+                          className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15"
                           style={{ padding: '0.35rem 0.8rem', fontSize: '0.72rem' }}
                         >
                           <span>{isCurrentLoading ? 'Loading...' : 'Inspect'}</span>
@@ -232,7 +232,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                     </p>
 
                     <div className="flex-row items-center justify-between" style={{ fontSize: '0.68rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.4rem' }}>
-                      <span>Model: <strong style={{ color: '#c7d2fe' }}>{s.model_used || 'LLM Agent'}</strong></span>
+                      <span>Model: <strong style={{ color: 'var(--primary)' }}>{s.model_used || 'LLM Agent'}</strong></span>
                       <span>Session ID: <code style={{ color: 'var(--text-disabled)' }}>{s.id?.slice(0, 12)}...</code></span>
                     </div>
                   </div>
@@ -244,7 +244,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
 
         {/* Footer */}
         <div className="modal-footer">
-          <button type="button" onClick={onClose} className="btn-secondary">
+          <button type="button" onClick={onClose} className="btn-secondary cursor-pointer text-primary-foreground hover:bg-primary/95 bg-primary/80 text-text-primary border border-border-medium hover:border-white/20 hover:text-white">
             Close
           </button>
         </div>

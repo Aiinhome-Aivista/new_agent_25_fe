@@ -29,7 +29,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
   const [standards, setStandards] = useState<CodingStandardRule[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  
+
   // Filtering states
   const [selectedLanguage, setSelectedLanguage] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -117,7 +117,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
       }
 
       const rulesArray: any[] = Array.isArray(parsed) ? parsed : (parsed.standards || parsed.rules || [parsed]);
-      
+
       if (!rulesArray.length || !rulesArray[0].rule_code || !rulesArray[0].title) {
         setFileError('File does not contain valid rules. Each rule requires "rule_code", "title", and "description".');
         return;
@@ -268,7 +268,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
     return standards.filter(std => {
       const lang = (std.language || 'general').toLowerCase();
       const matchesLanguage = selectedLanguage === 'ALL' || lang === selectedLanguage.toLowerCase();
-      
+
       const cat = (std.category || '').toLowerCase();
       const matchesCategory = selectedCategory === 'ALL' || cat === selectedCategory.toLowerCase();
 
@@ -302,10 +302,10 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               justifyContent: 'center',
               border: '1px solid rgba(99, 102, 241, 0.4)'
             }}>
-              <UploadCloud size={20} color="#a5b4fc" />
+              <UploadCloud size={20} color="var(--primary)" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--foreground)', margin: 0, letterSpacing: '-0.02em' }}>
                 Coding Standards & Rules Ingestion
               </h2>
               <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -340,7 +340,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             <button
               type="button"
               onClick={() => setIsManualModalOpen(true)}
-              className="btn-prime"
+              className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15"
               style={{ fontSize: '0.74rem', padding: '0.45rem 0.95rem' }}
             >
               <Plus size={14} />
@@ -360,7 +360,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             fontSize: '0.75rem'
           }}>
             <div className="flex-row items-center justify-between" style={{ marginBottom: '0.5rem' }}>
-              <span style={{ fontWeight: 700, color: '#c7d2fe' }}>Expected Rules JSON Schema (Array of objects):</span>
+              <span style={{ fontWeight: 700, color: 'var(--primary)' }}>Expected Rules JSON Schema (Array of objects):</span>
               <button
                 type="button"
                 onClick={() => handleCopyCode(`[
@@ -380,21 +380,21 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                 className="btn-ghost"
                 style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
               >
-                {copiedCode === 'sample-schema' ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+                {copiedCode === 'sample-schema' ? <Check size={12} color="var(--color-ready)" /> : <Copy size={12} />}
                 <span>{copiedCode === 'sample-schema' ? 'Copied' : 'Copy Template'}</span>
               </button>
             </div>
             <pre style={{
-              background: '#090d16',
+              background: 'var(--background)',
               padding: '0.75rem',
               borderRadius: '8px',
               overflowX: 'auto',
-              color: '#94a3b8',
+              color: 'var(--muted-foreground)',
               fontFamily: 'var(--font-mono)',
               maxHeight: '160px',
               fontSize: '0.72rem'
             }}>
-{`[
+              {`[
   {
     "rule_code": "STD-SEC-01",
     "language": "java",
@@ -420,8 +420,8 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: isDragOver ? '2px dashed #818cf8' : '2px dashed rgba(255, 255, 255, 0.15)',
-              background: isDragOver ? 'rgba(99, 102, 241, 0.12)' : 'rgba(0, 0, 0, 0.25)',
+              border: isDragOver ? '2px dashed var(--primary)' : '2px dashed rgba(255, 255, 255, 0.15)',
+              background: isDragOver ? 'var(--muted)' : 'var(--muted/20)',
               borderRadius: '14px',
               padding: '2rem 1.5rem',
               textAlign: 'center',
@@ -446,18 +446,18 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               width: '48px',
               height: '48px',
               borderRadius: '50%',
-              background: 'rgba(99, 102, 241, 0.15)',
+              background: 'var(--muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '1px solid rgba(99, 102, 241, 0.3)'
+              border: '1px solid var(--border)'
             }}>
-              <UploadCloud size={24} color="#818cf8" />
+              <UploadCloud size={24} color="var(--primary)" />
             </div>
 
             <div>
-              <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', margin: '0 0 0.25rem 0' }}>
-                Drag and drop your rules file here, or <span style={{ color: '#818cf8', textDecoration: 'underline' }}>Browse files</span>
+              <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--foreground)', margin: '0 0 0.25rem 0' }}>
+                Drag and drop your rules file here, or <span style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Browse files</span>
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
                 Upload JSON/YAML files to ingest coding standards directly into the database
@@ -471,7 +471,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                 borderRadius: '8px',
                 background: 'rgba(239, 68, 68, 0.15)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
+                color: 'var(--color-danger)',
                 fontSize: '0.75rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -505,10 +505,10 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                   justifyContent: 'center',
                   border: '1px solid rgba(16, 185, 129, 0.3)'
                 }}>
-                  <FileCode2 size={22} color="#34d399" />
+                  <FileCode2 size={22} color="var(--color-ready)" />
                 </div>
                 <div>
-                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--foreground)', margin: 0 }}>
                     {stagedFile.name}
                   </h4>
                   <div className="flex-row items-center gap-2" style={{ marginTop: '0.2rem' }}>
@@ -516,7 +516,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                       {(stagedFile.size / 1024).toFixed(1)} KB
                     </span>
                     <span style={{ color: 'var(--border-subtle)' }}>•</span>
-                    <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-ready)', fontWeight: 600 }}>
                       ✓ Validated {stagedFile.parsedRules.length} Rules
                     </span>
                   </div>
@@ -539,7 +539,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                   type="button"
                   onClick={handleConfirmUpload}
                   disabled={isUploading}
-                  className="btn-prime"
+                  className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15"
                   style={{ fontSize: '0.78rem', padding: '0.5rem 1.15rem' }}
                 >
                   {isUploading ? (
@@ -570,7 +570,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                     padding: '0.15rem 0.5rem',
                     borderRadius: '6px',
                     background: 'rgba(99, 102, 241, 0.15)',
-                    color: '#a5b4fc',
+                    color: 'var(--primary)',
                     border: '1px solid rgba(99, 102, 241, 0.25)'
                   }}
                 >
@@ -583,13 +583,13 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
       </div>
 
       {/* Language-Wise Rules Hub ("lunges waise dhka jaba") */}
-      <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="glass-panel" style={{ padding: '.51rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {/* Hub Header & Metrics */}
         <div className="flex-row items-center justify-between gap-3" style={{ flexWrap: 'wrap' }}>
           <div>
             <div className="flex-row items-center gap-2">
-              <Database size={20} color="#818cf8" />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
+              <Database size={20} color="var(--primary)" />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>
                 Enterprise Rules Catalog (Dynamic Database)
               </h3>
             </div>
@@ -599,13 +599,13 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
           </div>
 
           <div className="flex-row items-center gap-2">
-            <div className="status-pill" style={{ background: 'rgba(99, 102, 241, 0.12)', borderColor: 'rgba(99, 102, 241, 0.3)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#a5b4fc', fontWeight: 700 }}>
+            <div className="status-pill bg-sidebar border-border text-secondary-text" style={{ background: 'rgba(99, 102, 241, 0.12)', borderColor: 'rgba(99, 102, 241, 0.3)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700 }}>
                 Total in DB: {standards.length} Rules
               </span>
             </div>
-            <div className="status-pill" style={{ background: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700 }}>
+            <div className="status-pill bg-sidebar border-border text-secondary-text" style={{ background: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-danger)', fontWeight: 700 }}>
                 {standards.filter(s => s.is_blocking || s.severity === 'CRITICAL').length} Blocking Gates
               </span>
             </div>
@@ -640,13 +640,13 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                     borderRadius: '10px'
                   }}
                 >
-                  <Code2 size={14} color={isActive ? '#818cf8' : 'var(--text-muted)'} />
+                  <Code2 size={14} color={isActive ? 'var(--primary)' : 'var(--text-muted)'} />
                   <span>{lang}</span>
                   <span
                     className="tab-counter-badge"
                     style={{
                       background: isActive ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255, 255, 255, 0.08)',
-                      color: isActive ? '#ffffff' : 'var(--text-secondary)'
+                      color: isActive ? 'var(--foreground)' : 'var(--text-secondary)'
                     }}
                   >
                     {count}
@@ -663,7 +663,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
           <div
             className="flex-row items-center gap-2"
             style={{
-              background: 'rgba(0, 0, 0, 0.4)',
+              background: 'var(--muted)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '10px',
               padding: '0.45rem 0.85rem',
@@ -678,11 +678,11 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
-                background: 'transparent',
+                background: 'var(--muted)',
                 border: 'none',
                 outline: 'none',
                 fontSize: '0.78rem',
-                color: '#ffffff',
+                color: 'var(--foreground)',
                 width: '100%'
               }}
             />
@@ -738,12 +738,12 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
           <div style={{
             textAlign: 'center',
             padding: '3rem 1.5rem',
-            background: 'rgba(0, 0, 0, 0.2)',
+            background: 'var(--muted)',
             borderRadius: '12px',
-            border: '1px dashed var(--border-subtle)'
+            border: '2px dashed var(--border)'
           }}>
             <Database size={32} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem auto' }} />
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.25rem' }}>
               {standards.length === 0 ? "Database is Currently Empty" : "No Matching Rules Found"}
             </h4>
             <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto 1rem auto' }}>
@@ -776,11 +776,11 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               return (
                 <div
                   key={rule.rule_code || idx}
-                  className="issue-card"
+                  className="issue-card bg-sidebar border-border"
                   style={{
                     padding: '1.25rem',
                     position: 'relative',
-                    background: 'rgba(15, 23, 42, 0.55)',
+                    background: 'var(--card)',
                     border: isBlocking ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid var(--border-subtle)'
                   }}
                 >
@@ -795,14 +795,14 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                           padding: '0.2rem 0.6rem',
                           borderRadius: '6px',
                           background: 'rgba(99, 102, 241, 0.18)',
-                          color: '#a5b4fc',
+                          color: 'var(--primary)',
                           border: '1px solid rgba(99, 102, 241, 0.35)'
                         }}
                       >
                         {rule.rule_code}
                       </span>
 
-                      <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>
                         {rule.title}
                       </h4>
                     </div>
@@ -817,7 +817,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                           padding: '0.2rem 0.55rem',
                           borderRadius: '6px',
                           background: 'rgba(255, 255, 255, 0.07)',
-                          color: '#e2e8f0',
+                          color: 'var(--foreground)',
                           fontWeight: 600
                         }}
                       >
@@ -832,7 +832,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                           padding: '0.2rem 0.55rem',
                           borderRadius: '6px',
                           background: sev === 'CRITICAL' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                          color: sev === 'CRITICAL' ? '#f87171' : '#fbbf24',
+                          color: sev === 'CRITICAL' ? 'var(--color-danger)' : 'var(--color-warning)',
                           border: `1px solid ${sev === 'CRITICAL' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`
                         }}
                       >
@@ -848,7 +848,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                             padding: '0.2rem 0.55rem',
                             borderRadius: '6px',
                             background: 'rgba(239, 68, 68, 0.15)',
-                            color: '#fda4af',
+                            color: 'var(--color-danger)',
                             border: '1px solid rgba(239, 68, 68, 0.3)'
                           }}
                         >
@@ -888,7 +888,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                           }}
                         >
                           <div className="flex-row items-center justify-between" style={{ marginBottom: '0.35rem' }}>
-                            <span style={{ color: '#fb7185', fontWeight: 700, fontSize: '0.72rem' }}>
+                            <span style={{ color: 'var(--color-danger)', fontWeight: 700, fontSize: '0.72rem' }}>
                               ❌ Non-Compliant Pattern
                             </span>
                             <button
@@ -897,7 +897,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                               className="btn-ghost"
                               style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem' }}
                             >
-                              {copiedCode === `bad-${rule.rule_code}` ? <Check size={10} color="#34d399" /> : <Copy size={10} />}
+                              {copiedCode === `bad-${rule.rule_code}` ? <Check size={10} color="var(--color-ready)" /> : <Copy size={10} />}
                               <span>{copiedCode === `bad-${rule.rule_code}` ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
@@ -907,8 +907,8 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                             whiteSpace: 'pre-wrap',
                             fontFamily: 'var(--font-mono)',
                             fontSize: '0.7rem',
-                            color: '#fda4af',
-                            background: 'rgba(0, 0, 0, 0.3)',
+                            color: 'var(--color-danger)',
+                            background: 'var(--card)',
                             padding: '0.5rem',
                             borderRadius: '6px'
                           }}>
@@ -928,7 +928,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                           }}
                         >
                           <div className="flex-row items-center justify-between" style={{ marginBottom: '0.35rem' }}>
-                            <span style={{ color: '#34d399', fontWeight: 700, fontSize: '0.72rem' }}>
+                            <span style={{ color: 'var(--color-ready)', fontWeight: 700, fontSize: '0.72rem' }}>
                               ✅ Approved Standard Pattern
                             </span>
                             <button
@@ -937,7 +937,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                               className="btn-ghost"
                               style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem' }}
                             >
-                              {copiedCode === `good-${rule.rule_code}` ? <Check size={10} color="#34d399" /> : <Copy size={10} />}
+                              {copiedCode === `good-${rule.rule_code}` ? <Check size={10} color="var(--color-ready)" /> : <Copy size={10} />}
                               <span>{copiedCode === `good-${rule.rule_code}` ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
@@ -947,8 +947,8 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                             whiteSpace: 'pre-wrap',
                             fontFamily: 'var(--font-mono)',
                             fontSize: '0.7rem',
-                            color: '#6ee7b7',
-                            background: 'rgba(0, 0, 0, 0.3)',
+                            color: 'var(--color-ready)',
+                            background: 'var(--card)',
                             padding: '0.5rem',
                             borderRadius: '6px'
                           }}>
@@ -963,7 +963,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                   <div className="flex-row items-center justify-between" style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                     <div className="flex-row items-center gap-2">
                       <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Category:</span>
-                      <span style={{ fontSize: '0.68rem', color: '#c7d2fe', textTransform: 'capitalize', fontWeight: 600 }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--primary)', textTransform: 'capitalize', fontWeight: 600 }}>
                         {rule.category}
                       </span>
                     </div>
@@ -994,8 +994,8 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
           <div className="modal-window" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="flex-row items-center gap-2">
-                <Plus size={18} color="#818cf8" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
+                <Plus size={18} color="var(--primary)" />
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>
                   Add Custom Coding Standard to Database
                 </h3>
               </div>
@@ -1115,7 +1115,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                     </select>
                   </div>
 
-                  <label className="flex-row items-center gap-2" style={{ cursor: 'pointer', fontSize: '0.78rem', color: '#ffffff' }}>
+                  <label className="flex-row items-center gap-2" style={{ cursor: 'pointer', fontSize: '0.78rem', color: 'var(--foreground)' }}>
                     <input
                       type="checkbox"
                       checked={manualRule.is_blocking}
@@ -1127,10 +1127,10 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               </div>
 
               <div className="modal-footer">
-                <button type="button" onClick={() => setIsManualModalOpen(false)} className="btn-secondary">
+                <button type="button" onClick={() => setIsManualModalOpen(false)} className="btn-secondary bg-white/5 text-text-primary border border-border-medium hover:bg-white/10 hover:border-white/20 hover:text-white">
                   Cancel
                 </button>
-                <button type="submit" disabled={isUploading} className="btn-prime">
+                <button type="submit" disabled={isUploading} className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15">
                   {isUploading ? 'Saving to DB...' : 'Save to Database'}
                 </button>
               </div>
