@@ -45,6 +45,8 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
     parsedRules: CodingStandardRule[];
   } | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<any[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Manual rule modal state
@@ -143,6 +145,8 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
         size: file.size,
         parsedRules: formattedRules
       });
+      setUploadError(null);
+      setValidationErrors(null);
     } catch (err: any) {
       setFileError(`Error reading file: ${err.message}`);
     }
@@ -173,18 +177,26 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
     }
   };
 
-  const handleConfirmUpload = async () => {
+  const handleConfirmUpload = async (force: boolean = false) => {
     if (!stagedFile) return;
 
     try {
       setIsUploading(true);
-      await uploadStandardsBulk(stagedFile.parsedRules);
+      await uploadStandardsBulk(stagedFile.parsedRules, force);
       notify(`Successfully saved ${stagedFile.parsedRules.length} rules to database!`, 'success');
       setStagedFile(null);
+      setUploadError(null);
+      setValidationErrors(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       await loadAllStandards();
     } catch (err: any) {
-      notify(`Failed to upload to database: ${err.message || err}`, 'error');
+      if (err.failed_rules) {
+        setValidationErrors(err.failed_rules);
+        setUploadError(`Validation failed for ${err.failed_count} rule(s).`);
+      } else {
+        setUploadError(err.message || String(err));
+        notify(`Failed to upload to database: ${err.message || err}`, 'error');
+      }
     } finally {
       setIsUploading(false);
     }
@@ -578,6 +590,63 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                 </span>
               ))}
             </div>
+
+            {uploadError && (
+              <div style={{
+                marginTop: '0.25rem',
+                padding: '0.65rem 0.85rem',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: '0.75rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600 }}>{uploadError}</span>
+                  
+                  {validationErrors && (
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmUpload(true)}
+                      disabled={isUploading}
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '0.25rem 0.6rem',
+                        fontSize: '0.7rem',
+                        background: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isUploading ? 'Uploading...' : 'Upload Anyway'}
+                    </button>
+                  )}
+                </div>
+                
+                {validationErrors && validationErrors.length > 0 && (
+                  <div style={{ 
+                    marginTop: '0.25rem', 
+                    maxHeight: '120px', 
+                    overflowY: 'auto', 
+                    padding: '0.5rem', 
+                    background: 'rgba(0,0,0,0.2)', 
+                    borderRadius: '4px' 
+                  }}>
+                    {validationErrors.map((err, i) => (
+                      <div key={i} style={{ marginBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                        <strong style={{ color: '#fca5a5' }}>[{err.rule_code}]</strong> {err.warning}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

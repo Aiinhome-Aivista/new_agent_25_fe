@@ -51,13 +51,19 @@ export async function fetchAllStandards(): Promise<any[]> {
   return data.standards || [];
 }
 
-export async function uploadStandardsBulk(rules: any[]): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/v1/standards/bulk`, {
+export async function uploadStandardsBulk(rules: any[], force: boolean = false): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/v1/standards/bulk?force=${force}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(rules)
   });
-  if (!response.ok) throw new Error('Failed to upload standards');
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    if (errData.failed_rules) {
+      throw errData;
+    }
+    throw new Error(errData.warning_message || errData.error || 'Failed to upload standards');
+  }
   return response.json();
 }
 

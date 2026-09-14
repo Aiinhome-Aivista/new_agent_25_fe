@@ -62,9 +62,9 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
       await uploadStandardsBulk(rulesArray);
       await loadStandards();
       alert("Rules uploaded successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to upload rules. Ensure it is a valid JSON array.");
+      alert(err.message || "Failed to upload rules. Ensure it is a valid JSON array.");
     } finally {
       setIsLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
