@@ -241,6 +241,16 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                     <p style={{ fontSize: '0.76rem', color: '#cbd5e1', lineHeight: 1.6 }}>
                       {issue.suggestion}
                     </p>
+                    {issue.fix_code && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', marginBottom: '0.25rem' }}>
+                          // Suggested Fix Code:
+                        </div>
+                        <pre style={{ color: '#e2e8f0', background: 'rgba(0,0,0,0.4)', padding: '0.5rem', borderRadius: '4px', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                          {issue.fix_code}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

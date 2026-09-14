@@ -12,6 +12,7 @@ export interface GroundedIssue {
   rule_id?: string;
   message: string;
   suggestion: string;
+  fix_code?: string;
   evidence: string;
   is_blocking?: boolean;
   source_tool?: string;
