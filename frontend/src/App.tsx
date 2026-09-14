@@ -205,7 +205,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Footer */}
-      <footer className="footer-root">
+      <footer className="footer-root bg-card">
         AI Code Review Agent — Enterprise Standards Ingestion & Pre-Push Gatekeeper Engine (Python Flask + MySQL + React)
       </footer>
     </div>

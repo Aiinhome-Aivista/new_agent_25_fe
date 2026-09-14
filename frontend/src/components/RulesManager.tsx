@@ -288,8 +288,9 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'row', gap: '1.5rem', width: '100%' }}>
       {/* Top File Upload Dropzone Hero Card */}
-      <div className="glass-panel" style={{ padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <div className="glass-panel" style={{ padding: '1.5rem', position: 'relative', overflow: 'hidden', flex: 1 }}>
         <div className="flex-row items-center justify-between gap-3" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
           <div className="flex-row items-center gap-2">
             <div style={{
@@ -337,7 +338,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               <span>Sync DB</span>
             </button>
 
-            <button
+            {/* <button
               type="button"
               onClick={() => setIsManualModalOpen(true)}
               className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15"
@@ -345,7 +346,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             >
               <Plus size={14} />
               <span>Add Custom Rule</span>
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -420,7 +421,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: isDragOver ? '2px dashed var(--primary)' : '2px dashed rgba(255, 255, 255, 0.15)',
+              border: isDragOver ? '2px dashed var(--primary)' : '2px dashed var(--border)',
               background: isDragOver ? 'var(--muted)' : 'var(--muted/20)',
               borderRadius: '14px',
               padding: '2rem 1.5rem',
@@ -583,7 +584,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
       </div>
 
       {/* Language-Wise Rules Hub ("lunges waise dhka jaba") */}
-      <div className="glass-panel" style={{ padding: '.51rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="glass-panel" style={{ padding: '.51rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: 2, height: '80vh'}}>
         {/* Hub Header & Metrics */}
         <div className="flex-row items-center justify-between gap-3" style={{ flexWrap: 'wrap' }}>
           <div>
@@ -618,7 +619,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             display: 'flex',
             alignItems: 'center',
             gap: '0.45rem',
-            overflowX: 'auto',
+            // overflowX: 'auto',
             paddingBottom: '0.35rem',
             borderBottom: '1px solid var(--border-subtle)'
           }}>
@@ -630,7 +631,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
                   key={lang}
                   type="button"
                   onClick={() => setSelectedLanguage(lang)}
-                  className={`tab-nav-btn ${isActive ? 'active' : ''}`}
+                  className={`tab-nav-btn ${isActive ? 'active bg-border' : ''}`}
                   style={{
                     padding: '0.55rem 1rem',
                     fontSize: '0.8rem',
@@ -663,7 +664,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
           <div
             className="flex-row items-center gap-2"
             style={{
-              background: 'var(--muted)',
+              background: 'var(--card)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '10px',
               padding: '0.45rem 0.85rem',
@@ -678,7 +679,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
-                background: 'var(--muted)',
+                background: 'var(--card)',
                 border: 'none',
                 outline: 'none',
                 fontSize: '0.78rem',
@@ -768,7 +769,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} className="overflow-y-auto">
             {filteredStandards.map((rule, idx) => {
               const isBlocking = rule.is_blocking || rule.severity === 'CRITICAL';
               const sev = (rule.severity || 'WARNING').toUpperCase();
@@ -986,6 +987,7 @@ export const RulesManager: React.FC<RulesManagerProps> = ({ onNotify }) => {
             })}
           </div>
         )}
+      </div>
       </div>
 
       {/* Manual Rule Modal Dialog */}

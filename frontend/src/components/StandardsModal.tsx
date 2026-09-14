@@ -107,7 +107,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
             <div
               className="flex-row items-center gap-2"
               style={{
-                background: 'rgba(0,0,0,0.4)',
+                background: 'var(--card)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '10px',
                 padding: '0.45rem 0.85rem',
@@ -175,7 +175,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
             {filteredStandards.map((std, idx) => (
-              <div key={idx} className="issue-card bg-sidebar border-border" style={{ padding: '1.15rem', position: 'relative' }}>
+              <div key={idx} className="issue-card bg-card border-border" style={{ padding: '1.15rem', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
                   <button 
                     onClick={() => handleDelete(std.rule_code)}
