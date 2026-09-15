@@ -28,7 +28,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (data) => {
       switch (data.type) {
         case 'triggerReview': {
-          await this.executeReview(data.acceptanceCriteria);
+          await this.executeReview(data.acceptanceCriteria, data.language);
           break;
         }
         case 'openFile': {
@@ -49,7 +49,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  public async executeReview(acceptanceCriteria: string = '') {
+  public async executeReview(acceptanceCriteria: string = '', language: string = 'java') {
     if (!this._view) return;
 
     this._view.webview.postMessage({ type: 'statusUpdate', status: 'COLLECTING_DIFF' });
@@ -84,6 +84,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         body: JSON.stringify({
           git_diff: diff,
           acceptance_criteria: acceptanceCriteria,
+          language: language,
           branch: branch,
           repository_name: vscode.workspace.name || 'local-repo'
         })
@@ -143,8 +144,19 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Acceptance Criteria (Optional):</label>
   <textarea id="acInput" rows="4" placeholder="Enter acceptance criteria or user story conditions..."></textarea>
   
+  <label style="font-weight: 600; display: block; margin-top: 10px; margin-bottom: 4px;">Language <span style="color:var(--vscode-errorForeground);">*</span>:</label>
+  <select id="langSelect" style="width: 100%; box-sizing: border-box; background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border); padding: 6px; border-radius: 4px;">
+    <option value="" disabled selected>Select Language</option>
+    <option value="python">Python</option>
+    <option value="java">Java</option>
+    <option value="typescript">TypeScript</option>
+    <option value="javascript">JavaScript</option>
+    <option value="go">Go</option>
+    <option value="csharp">C#</option>
+  </select>
+  
   <div style="margin-top: 10px;">
-    <button id="runBtn">🔍 Run Review Before Push</button>
+    <button id="runBtn" disabled style="opacity: 0.5; cursor: not-allowed;">🔍 Run Review Before Push</button>
   </div>
 
   <div id="statusDiv" style="margin-top: 10px; font-style: italic; color: var(--vscode-descriptionForeground);"></div>
@@ -154,15 +166,32 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     const vscode = acquireVsCodeApi();
     const runBtn = document.getElementById('runBtn');
     const acInput = document.getElementById('acInput');
+    const langSelect = document.getElementById('langSelect');
     const statusDiv = document.getElementById('statusDiv');
     const resultContainer = document.getElementById('resultContainer');
 
+    langSelect.addEventListener('change', () => {
+      if (langSelect.value) {
+        runBtn.disabled = false;
+        runBtn.style.opacity = '1';
+        runBtn.style.cursor = 'pointer';
+      } else {
+        runBtn.disabled = true;
+        runBtn.style.opacity = '0.5';
+        runBtn.style.cursor = 'not-allowed';
+      }
+    });
+
     runBtn.addEventListener('click', () => {
+      if (!langSelect.value) return;
       runBtn.disabled = true;
+      runBtn.style.opacity = '0.5';
+      runBtn.style.cursor = 'not-allowed';
       statusDiv.innerText = '⚡ Extracting Git diff & orchestrating review agents...';
       vscode.postMessage({
         type: 'triggerReview',
-        acceptanceCriteria: acInput.value
+        acceptanceCriteria: acInput.value,
+        language: langSelect.value
       });
     });
 
@@ -172,10 +201,14 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         statusDiv.innerText = 'Analyzing: ' + message.status;
       } else if (message.type === 'reviewResult') {
         runBtn.disabled = false;
+        runBtn.style.opacity = '1';
+        runBtn.style.cursor = 'pointer';
         statusDiv.innerText = '';
         renderResult(message.result);
       } else if (message.type === 'error') {
         runBtn.disabled = false;
+        runBtn.style.opacity = '1';
+        runBtn.style.cursor = 'pointer';
         statusDiv.innerText = '❌ Error: ' + message.message;
       }
     });

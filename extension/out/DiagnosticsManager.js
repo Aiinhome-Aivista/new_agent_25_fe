@@ -27,7 +27,11 @@ class DiagnosticsManager {
                 severity = vscode.DiagnosticSeverity.Information;
             }
             const range = new vscode.Range(lineNum, 0, lineNum, 200);
-            const diagnostic = new vscode.Diagnostic(range, `[${issue.category || 'AI Review'}] ${issue.message}\n💡 Suggestion: ${issue.suggestion}`, severity);
+            let messageStr = `[${issue.category || 'AI Review'}] ${issue.message}\n💡 Suggestion: ${issue.suggestion}`;
+            if (issue.fix_code) {
+                messageStr += `\n\n🔧 Suggested Fix:\n${issue.fix_code}`;
+            }
+            const diagnostic = new vscode.Diagnostic(range, messageStr, severity);
             diagnostic.source = 'AI Code Review Agent';
             diagnostic.code = issue.rule_id || 'PRE-PUSH-CHECK';
             const existing = fileDiagnosticsMap.get(fullUri.toString()) || [];
