@@ -72,6 +72,29 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    const langExtensions: Record<string, string[]> = {
+      'python': ['.py'],
+      'java': ['.java'],
+      'typescript': ['.ts', '.tsx'],
+      'javascript': ['.js', '.jsx'],
+      'go': ['.go'],
+      'csharp': ['.cs']
+    };
+
+    const expectedExts = langExtensions[language.toLowerCase()] || [];
+    if (expectedExts.length > 0) {
+      const hasMatchingFile = expectedExts.some(ext => {
+        const escapedExt = ext.replace('.', '\\.');
+        return new RegExp(`\\+\\+\\+ b/.*${escapedExt}(\\s|$)`, 'im').test(diff);
+      });
+      
+      if (!hasMatchingFile) {
+        vscode.window.showErrorMessage('Language is not matched');
+        this._view.webview.postMessage({ type: 'error', message: 'Language is not matched' });
+        return;
+      }
+    }
+
     this._view.webview.postMessage({ type: 'statusUpdate', status: 'RUNNING_AGENTS' });
 
     const config = vscode.workspace.getConfiguration('aiCodeReview');

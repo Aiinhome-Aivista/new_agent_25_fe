@@ -58,6 +58,26 @@ class ReviewWebviewProvider {
             });
             return;
         }
+        const langExtensions = {
+            'python': ['.py'],
+            'java': ['.java'],
+            'typescript': ['.ts', '.tsx'],
+            'javascript': ['.js', '.jsx'],
+            'go': ['.go'],
+            'csharp': ['.cs']
+        };
+        const expectedExts = langExtensions[language.toLowerCase()] || [];
+        if (expectedExts.length > 0) {
+            const hasMatchingFile = expectedExts.some(ext => {
+                const escapedExt = ext.replace('.', '\\.');
+                return new RegExp(`\\+\\+\\+ b/.*${escapedExt}(\\s|$)`, 'im').test(diff);
+            });
+            if (!hasMatchingFile) {
+                vscode.window.showErrorMessage('code is not matched');
+                this._view.webview.postMessage({ type: 'error', message: 'code is not matched' });
+                return;
+            }
+        }
         this._view.webview.postMessage({ type: 'statusUpdate', status: 'RUNNING_AGENTS' });
         const config = vscode.workspace.getConfiguration('aiCodeReview');
         const backendUrl = config.get('backendUrl', 'http://localhost:5000');
