@@ -51,30 +51,30 @@ export const PushReadinessCard: React.FC<PushReadinessCardProps> = ({
         return {
           title: 'READY TO PUSH',
           subtitle: 'All deterministic quality gates, security baselines, and test scenarios passed successfully.',
-          heroClass: 'verdict-hero verdict-hero-ready',
-          icon: <ShieldCheck size={32} color="#10b981" />
+          heroClass: 'verdict-hero verdict-hero-ready bg-[var(--color-ready-bg)] border-[var(--color-ready-border)] shadow-[var(--shadow-glow-ready)]',
+          icon: <ShieldCheck size={32} color="var(--color-ready)" />
         };
       case 'MINOR_FIXES_REQUIRED':
         return {
           title: 'MINOR FIXES REQUIRED',
           subtitle: 'Non-blocking improvements, standards alignment, or optional test coverage suggested.',
-          heroClass: 'verdict-hero verdict-hero-warning',
-          icon: <AlertTriangle size={32} color="#f59e0b" />
+          heroClass: 'verdict-hero verdict-hero-warning bg-[var(--color-warning-bg)] border-[var(--color-warning-border)] shadow-[var(--shadow-glow-warning)]',
+          icon: <AlertTriangle size={32} color="var(--color-warning)" />
         };
       case 'DO_NOT_PUSH':
         return {
           title: 'DO NOT PUSH — GATE BLOCKED',
           subtitle: 'Critical security vulnerability, policy violation, or failed mandatory criterion detected.',
-          heroClass: 'verdict-hero verdict-hero-blocked',
-          icon: <XCircle size={32} color="#f43f5e" />
+          heroClass: 'verdict-hero verdict-hero-blocked bg-[var(--color-danger-bg)] border-[var(--color-danger-border)] shadow-[var(--shadow-glow-danger)]',
+          icon: <XCircle size={32} color="var(--color-danger)" />
         };
       case 'LIMITED_REVIEW':
       default:
         return {
           title: 'LIMITED REVIEW',
           subtitle: 'Review executed with partial context or missing acceptance criteria.',
-          heroClass: 'verdict-hero verdict-hero-limited',
-          icon: <HelpCircle size={32} color="#06b6d4" />
+          heroClass: 'verdict-hero verdict-hero-limited bg-[var(--color-info-bg)] border-[var(--color-info-border)]',
+          icon: <HelpCircle size={32} color="var(--color-info)" />
         };
     }
   };
@@ -137,11 +137,11 @@ ${summary}
         <div className="verdict-meta-strip">
           <div className="flex-row items-center gap-2">
             <Cpu size={12} />
-            <span>Model: <strong style={{ color: '#c7d2fe' }}>{model}</strong></span>
+            <span>Model: <strong style={{ color: 'var(--primary)' }}>{model}</strong></span>
           </div>
           <div className="flex-row items-center gap-2">
             <Clock size={12} />
-            <span>Latency: <strong style={{ color: '#f8fafc' }}>{(durationMs / 1000).toFixed(2)}s</strong></span>
+            <span>Latency: <strong style={{ color: 'var(--foreground)' }}>{(durationMs / 1000).toFixed(2)}s</strong></span>
           </div>
           {sessionId && (
             <div className="flex-row items-center gap-2">
@@ -151,10 +151,10 @@ ${summary}
           )}
           <button
             onClick={handleCopyPrComment}
-            className="btn-secondary"
+            className="btn-secondary bg-white/5 text-text-primary border border-border-medium hover:bg-white/10 hover:border-white/20 hover:text-white"
             style={{ marginTop: '0.35rem', padding: '0.35rem 0.75rem', fontSize: '0.72rem' }}
           >
-            {copiedPr ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+            {copiedPr ? <Check size={12} color="var(--color-ready)" /> : <Copy size={12} />}
             <span>{copiedPr ? 'PR Summary Copied!' : 'Copy PR Comment'}</span>
           </button>
         </div>
@@ -162,7 +162,7 @@ ${summary}
 
       {/* Summary Narrative Box */}
       <div className="verdict-summary-box">
-        <strong style={{ color: '#818cf8', marginRight: '0.5rem' }}>
+        <strong style={{ color: 'var(--primary)', marginRight: '0.5rem' }}>
           Orchestrator Verdict Summary:
         </strong>
         {summary}
@@ -178,9 +178,9 @@ ${summary}
         >
           <div className="metric-label">
             <span>Blocking Issues</span>
-            <AlertOctagon size={16} color={blockingCount > 0 ? '#f43f5e' : 'var(--text-muted)'} />
+            <AlertOctagon size={16} color={blockingCount > 0 ? 'var(--color-danger)' : 'var(--text-muted)'} />
           </div>
-          <div className="metric-value" style={{ color: blockingCount > 0 ? '#fb7185' : '#ffffff' }}>
+          <div className="metric-value" style={{ color: blockingCount > 0 ? 'var(--color-danger)' : 'var(--foreground)' }}>
             {blockingCount}
           </div>
         </div>
@@ -193,22 +193,22 @@ ${summary}
         >
           <div className="metric-label">
             <span>Warnings</span>
-            <AlertTriangle size={16} color={warningCount > 0 ? '#f59e0b' : 'var(--text-muted)'} />
+            <AlertTriangle size={16} color={warningCount > 0 ? 'var(--color-warning)' : 'var(--text-muted)'} />
           </div>
-          <div className="metric-value" style={{ color: warningCount > 0 ? '#fcd34d' : '#ffffff' }}>
+          <div className="metric-value" style={{ color: warningCount > 0 ? 'var(--color-warning)' : 'var(--foreground)' }}>
             {warningCount}
           </div>
         </div>
 
         <div
-          className="metric-kpi-card success"
+          className="metric-kpi-card success bg-[var(--color-ready-bg)] border-[var(--color-ready-border)]"
           title="Security & compliance checks passed"
         >
           <div className="metric-label">
             <span>Passed Checks</span>
-            <CheckCircle2 size={16} color="#10b981" />
+            <CheckCircle2 size={16} color="var(--color-ready)" />
           </div>
-          <div className="metric-value" style={{ color: '#6ee7b7' }}>
+          <div className="metric-value" style={{ color: 'var(--color-ready)' }}>
             {passedChecksCount}
           </div>
         </div>
@@ -221,9 +221,9 @@ ${summary}
         >
           <div className="metric-label">
             <span>Missing Tests</span>
-            <ShieldCheck size={16} color={missingTestsCount > 0 ? '#818cf8' : 'var(--text-muted)'} />
+            <ShieldCheck size={16} color={missingTestsCount > 0 ? 'var(--primary)' : 'var(--text-muted)'} />
           </div>
-          <div className="metric-value" style={{ color: missingTestsCount > 0 ? '#a5b4fc' : '#ffffff' }}>
+          <div className="metric-value" style={{ color: missingTestsCount > 0 ? 'var(--primary)' : 'var(--foreground)' }}>
             {missingTestsCount}
           </div>
         </div>

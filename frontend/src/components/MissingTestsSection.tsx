@@ -27,7 +27,7 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(244, 63, 94, 0.16)',
-              color: '#fb7185',
+              color: 'var(--color-danger)',
               border: '1px solid rgba(244, 63, 94, 0.35)'
             }}
           >
@@ -44,7 +44,7 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(245, 158, 11, 0.16)',
-              color: '#fcd34d',
+              color: 'var(--color-warning)',
               border: '1px solid rgba(245, 158, 11, 0.35)'
             }}
           >
@@ -61,7 +61,7 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(139, 92, 246, 0.16)',
-              color: '#c4b5fd',
+              color: 'var(--primary)',
               border: '1px solid rgba(139, 92, 246, 0.35)'
             }}
           >
@@ -79,7 +79,7 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
               padding: '0.15rem 0.5rem',
               borderRadius: '6px',
               background: 'rgba(16, 185, 129, 0.16)',
-              color: '#6ee7b7',
+              color: 'var(--color-ready)',
               border: '1px solid rgba(16, 185, 129, 0.35)'
             }}
           >
@@ -94,8 +94,8 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
       {/* Header */}
       <div className="controls-header">
         <div className="flex-row items-center gap-2">
-          <TestTube2 size={18} color="#818cf8" />
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
+          <TestTube2 size={18} color="var(--primary)" />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Missing Unit Tests & Edge Case Coverage
           </h3>
           <span className="tab-counter-badge">
@@ -106,8 +106,8 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
 
       {missingTests.length === 0 ? (
         <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <CheckCircle2 size={36} color="#10b981" style={{ margin: '0 auto 0.75rem auto' }} />
-          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+          <CheckCircle2 size={36} color="var(--color-ready)" style={{ margin: '0 auto 0.75rem auto' }} />
+          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--foreground)' }}>
             Comprehensive Test Coverage Observed
           </p>
           <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
@@ -129,7 +129,7 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
                   </div>
                 </div>
 
-                <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.5 }}>
                   {test.description}
                 </p>
               </div>
@@ -147,7 +147,7 @@ export const MissingTestsSection: React.FC<MissingTestsSectionProps> = ({ missin
                       className="btn-ghost"
                       title="Copy test code"
                     >
-                      {copiedId === idx ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+                      {copiedId === idx ? <Check size={12} color="var(--color-ready)" /> : <Copy size={12} />}
                       <span style={{ fontSize: '0.68rem' }}>
                         {copiedId === idx ? 'Copied' : 'Copy Test'}
                       </span>

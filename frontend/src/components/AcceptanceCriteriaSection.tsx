@@ -18,8 +18,8 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
       {/* Header */}
       <div className="controls-header">
         <div className="flex-row items-center gap-2">
-          <CheckSquare size={18} color="#818cf8" />
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
+          <CheckSquare size={18} color="var(--primary)" />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Acceptance Criteria Verification Matrix
           </h3>
           <span className="tab-counter-badge">
@@ -30,8 +30,8 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
 
       {totalCount === 0 ? (
         <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <CheckSquare size={36} color="#818cf8" style={{ margin: '0 auto 0.75rem auto' }} />
-          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+          <CheckSquare size={36} color="var(--primary)" style={{ margin: '0 auto 0.75rem auto' }} />
+          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--foreground)' }}>
             No explicit Acceptance Criteria parsed
           </p>
           <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
@@ -55,7 +55,7 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
                         style={{
                           fontSize: '0.72rem',
                           fontWeight: 700,
-                          color: '#34d399',
+                          color: 'var(--color-ready)',
                           background: 'rgba(16, 185, 129, 0.15)',
                           padding: '0.2rem 0.6rem',
                           borderRadius: '6px',
@@ -70,7 +70,7 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
                         style={{
                           fontSize: '0.72rem',
                           fontWeight: 700,
-                          color: '#fb7185',
+                          color: 'var(--color-danger)',
                           background: 'rgba(244, 63, 94, 0.15)',
                           padding: '0.2rem 0.6rem',
                           borderRadius: '6px',
@@ -99,7 +99,7 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
                         style={{
                           fontSize: '0.65rem',
                           fontWeight: 600,
-                          color: item.priority === 'HIGH' ? '#fcd34d' : 'var(--text-muted)'
+                          color: item.priority === 'HIGH' ? 'var(--color-warning)' : 'var(--text-muted)'
                         }}
                       >
                         [{item.priority} PRIORITY]
@@ -109,13 +109,13 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc' }}>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground)' }}>
                     {item.description}
                   </p>
 
                   {item.checkable_condition && (
                     <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                      <strong style={{ color: '#c7d2fe' }}>Grounded Condition: </strong>
+                      <strong style={{ color: 'var(--primary)' }}>Grounded Condition: </strong>
                       {item.checkable_condition}
                     </p>
                   )}
@@ -126,7 +126,7 @@ export const AcceptanceCriteriaSection: React.FC<AcceptanceCriteriaSectionProps>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', marginBottom: '0.2rem' }}>
                       // Verification Evidence from Diff:
                     </div>
-                    <pre style={{ color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
+                    <pre style={{ color: 'var(--foreground)', whiteSpace: 'pre-wrap' }}>
                       {item.evidence}
                     </pre>
                   </div>
