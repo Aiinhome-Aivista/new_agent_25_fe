@@ -61,8 +61,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
         {/* Header */}
         <div className="modal-header">
           <div className="flex-row items-center gap-2">
-            <Sliders size={20} color="#818cf8" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff' }}>
+            <Sliders size={20} color="var(--primary)" />
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--foreground)' }}>
               System & Gatekeeper Configuration
             </h3>
           </div>
@@ -75,7 +75,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
         <div className="modal-body">
           {/* LLM Mode Selector */}
           <div>
-            <label style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc', display: 'block', marginBottom: '0.45rem' }}>
+            <label style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--foreground)', display: 'block', marginBottom: '0.45rem' }}>
               LLM Reasoning Engine Provider
             </label>
             <div className="grid-2">
@@ -91,8 +91,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 }}
               >
                 <div className="flex-row items-center justify-between">
-                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>Google Gemini</span>
-                  <Sparkles size={14} color="#818cf8" />
+                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--foreground)' }}>Google Gemini</span>
+                  <Sparkles size={14} color="var(--primary)" />
                 </div>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                   Cloud-hosted fast grounded reasoning (gemini-3.7-flash)
@@ -111,8 +111,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 }}
               >
                 <div className="flex-row items-center justify-between">
-                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>Mistral AI</span>
-                  <Cpu size={14} color="#a855f7" />
+                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--foreground)' }}>Mistral AI</span>
+                  <Cpu size={14} color="var(--primary)" />
                 </div>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                   On-premise / Local vLLM private deployment
@@ -159,14 +159,14 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
               border: '1px solid var(--border-subtle)'
             }}
           >
-            <div className="flex-row items-center gap-1.5" style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.35rem' }}>
-              <Database size={15} color="#34d399" />
+            <div className="flex-row items-center gap-1.5" style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.35rem' }}>
+              <Database size={15} color="var(--color-ready)" />
               <span>Enterprise MySQL Storage Topology</span>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-              <div>Host: <strong style={{ color: '#e2e8f0' }}>{config.mysql_host}:{config.mysql_port}</strong></div>
-              <div>Database: <strong style={{ color: '#e2e8f0' }}>{config.mysql_database}</strong> (User: {config.mysql_user})</div>
-              <div>Status: <strong style={{ color: '#34d399' }}>Connected to MySQL Cluster</strong></div>
+              <div>Host: <strong style={{ color: 'var(--foreground)' }}>{config.mysql_host}:{config.mysql_port}</strong></div>
+              <div>Database: <strong style={{ color: 'var(--foreground)' }}>{config.mysql_database}</strong> (User: {config.mysql_user})</div>
+              <div>Status: <strong style={{ color: 'var(--color-ready)' }}>Connected to MySQL Cluster</strong></div>
             </div>
           </div>
 
@@ -181,7 +181,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
             }}
           >
             <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ffffff' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--foreground)' }}>
                 Deterministic Pre-Push Gatekeeper
               </div>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
@@ -199,16 +199,16 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
 
         {/* Footer */}
         <div className="modal-footer">
-          <button type="button" onClick={onClose} className="btn-secondary">
+          <button type="button" onClick={onClose} className="btn-secondary bg-white/5 text-text-primary border border-border-medium hover:bg-white/10 hover:border-white/20 hover:text-white">
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="btn-prime"
+            className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15"
           >
-            {savedSuccess ? <Check size={14} color="#34d399" /> : <Save size={14} />}
+            {savedSuccess ? <Check size={14} color="var(--color-ready)" /> : <Save size={14} />}
             <span>{savedSuccess ? 'Settings Saved!' : isSaving ? 'Saving...' : 'Save Configuration'}</span>
           </button>
         </div>

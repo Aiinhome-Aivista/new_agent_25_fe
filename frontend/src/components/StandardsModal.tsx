@@ -88,8 +88,8 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
         {/* Header */}
         <div className="modal-header">
           <div className="flex-row items-center gap-2">
-            <BookOpen size={20} color="#818cf8" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff' }}>
+            <BookOpen size={20} color="var(--primary)" />
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--foreground)' }}>
               Knowledge Base & Coding Standards
             </h3>
             <span className="tab-counter-badge">
@@ -107,7 +107,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
             <div
               className="flex-row items-center gap-2"
               style={{
-                background: 'rgba(0,0,0,0.4)',
+                background: 'var(--card)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '10px',
                 padding: '0.45rem 0.85rem',
@@ -126,7 +126,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
                   border: 'none',
                   outline: 'none',
                   fontSize: '0.76rem',
-                  color: '#ffffff',
+                  color: 'var(--foreground)',
                   width: '100%'
                 }}
               />
@@ -175,7 +175,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
             {filteredStandards.map((std, idx) => (
-              <div key={idx} className="issue-card" style={{ padding: '1.15rem', position: 'relative' }}>
+              <div key={idx} className="issue-card bg-card border-border" style={{ padding: '1.15rem', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
                   <button 
                     onClick={() => handleDelete(std.rule_code)}
@@ -195,13 +195,13 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
                         padding: '0.2rem 0.6rem',
                         borderRadius: '6px',
                         background: 'rgba(99, 102, 241, 0.18)',
-                        color: '#a5b4fc',
+                        color: 'var(--primary)',
                         border: '1px solid rgba(99, 102, 241, 0.35)'
                       }}
                     >
                       {std.rule_code}
                     </span>
-                    <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ffffff' }}>
+                    <h4 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--foreground)' }}>
                       {std.title}
                     </h4>
                   </div>
@@ -245,12 +245,12 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
                           borderRadius: '10px',
                           background: 'rgba(244, 63, 94, 0.08)',
                           border: '1px solid rgba(244, 63, 94, 0.3)',
-                          color: '#fda4af',
+                          color: 'var(--color-danger)',
                           fontFamily: 'var(--font-mono)',
                           fontSize: '0.7rem'
                         }}
                       >
-                        <span style={{ color: '#fb7185', fontWeight: 700, display: 'block', marginBottom: '0.25rem', fontFamily: 'var(--font-sans)' }}>
+                        <span style={{ color: 'var(--color-danger)', fontWeight: 700, display: 'block', marginBottom: '0.25rem', fontFamily: 'var(--font-sans)' }}>
                           ❌ Non-Compliant Pattern:
                         </span>
                         <pre style={{ overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
@@ -265,12 +265,12 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
                         borderRadius: '10px',
                         background: 'rgba(16, 185, 129, 0.08)',
                         border: '1px solid rgba(16, 185, 129, 0.3)',
-                        color: '#6ee7b7',
+                        color: 'var(--color-ready)',
                         fontFamily: 'var(--font-mono)',
                         fontSize: '0.7rem'
                       }}
                     >
-                      <span style={{ color: '#34d399', fontWeight: 700, display: 'block', marginBottom: '0.25rem', fontFamily: 'var(--font-sans)' }}>
+                      <span style={{ color: 'var(--color-ready)', fontWeight: 700, display: 'block', marginBottom: '0.25rem', fontFamily: 'var(--font-sans)' }}>
                         ✅ Approved Standard Pattern:
                       </span>
                       <pre style={{ overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
@@ -286,7 +286,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
 
         {/* Footer */}
         <div className="modal-footer">
-          <button type="button" onClick={onClose} className="btn-secondary">
+          <button type="button" onClick={onClose} className="btn-secondary bg-white/5 text-text-primary border border-border-medium hover:bg-white/10 hover:border-white/20 hover:text-white">
             Close
           </button>
         </div>

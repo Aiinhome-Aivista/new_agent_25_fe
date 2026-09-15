@@ -162,8 +162,8 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({ onRunReview, isL
       {/* Top Header & Scenario Chips */}
       <div className="controls-header">
         <div className="flex-row items-center gap-2">
-          <Sparkles size={18} color="#818cf8" />
-          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
+          <Sparkles size={18} color="var(--primary)" />
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Review Scope & Inputs
           </h2>
         </div>
@@ -190,7 +190,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({ onRunReview, isL
         <div>
           <div className="editor-label">
             <span className="flex-row items-center gap-1">
-              <CheckSquare size={14} color="#818cf8" />
+              <CheckSquare size={14} color="var(--primary)" />
               Acceptance Criteria (User Story / Jira Task)
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
@@ -213,7 +213,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({ onRunReview, isL
         <div>
           <div className="editor-label">
             <span className="flex-row items-center gap-1">
-              <FileCode size={14} color="#818cf8" />
+              <FileCode size={14} color="var(--primary)" />
               Local Git Diff (Staged Changes / Working Tree)
             </span>
             <div className="flex-row items-center gap-2">
@@ -294,7 +294,7 @@ export const ReviewControls: React.FC<ReviewControlsProps> = ({ onRunReview, isL
         <button
           onClick={() => onRunReview(criteria, diff, language, framework)}
           disabled={isLoading || !diff.trim()}
-          className="btn-prime"
+          className="btn-prime bg-gradient-to-br from-primary to-[var(--hover-orange)] text-white border-white/15"
         >
           {isLoading ? (
             <>

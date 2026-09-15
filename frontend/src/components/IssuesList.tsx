@@ -81,8 +81,8 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
       {/* Header and Filter Toolbar */}
       <div className="controls-header">
         <div className="flex-row items-center gap-2">
-          <Wrench size={18} color="#818cf8" />
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
+          <Wrench size={18} color="var(--primary)" />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Grounded Findings & Fix Recommendations
           </h3>
           <span className="tab-counter-badge">
@@ -113,7 +113,7 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                 border: 'none',
                 outline: 'none',
                 fontSize: '0.72rem',
-                color: '#ffffff',
+                color: 'var(--foreground)',
                 width: '130px'
               }}
             />
@@ -145,8 +145,8 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
       <div style={{ marginTop: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {filteredIssues.length === 0 ? (
           <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <CheckCircle2 size={36} color="#10b981" style={{ margin: '0 auto 0.75rem auto' }} />
-            <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+            <CheckCircle2 size={36} color="var(--color-ready)" style={{ margin: '0 auto 0.75rem auto' }} />
+            <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--foreground)' }}>
               No issues detected in this category
             </p>
             <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
@@ -167,7 +167,7 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                 <div className="flex-row items-center justify-between gap-2" style={{ flexWrap: 'wrap' }}>
                   <div className="flex-row items-center gap-2">
                     {getSeverityBadge(issue.severity, issue.is_blocking)}
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground)' }}>
                       {issue.category}
                     </span>
                     {issue.rule_id && (
@@ -197,7 +197,7 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                 </div>
 
                 {/* Main Message */}
-                <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.5 }}>
                   {issue.message}
                 </p>
 
@@ -207,7 +207,7 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', marginBottom: '0.25rem' }}>
                       // Observed Code Evidence:
                     </div>
-                    <pre style={{ color: '#e2e8f0', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                    <pre style={{ color: 'var(--foreground)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
                       {issue.evidence}
                     </pre>
                   </div>
@@ -222,7 +222,7 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                     >
                       <span
                         className="flex-row items-center gap-1"
-                        style={{ fontSize: '0.72rem', fontWeight: 700, color: '#a5b4fc' }}
+                        style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)' }}
                       >
                         <ChevronRight size={14} /> Recommended Remediation:
                       </span>
@@ -232,13 +232,13 @@ export const IssuesList: React.FC<IssuesListProps> = ({ issues }) => {
                         className="btn-ghost"
                         title="Copy suggested fix"
                       >
-                        {copiedId === issueKey ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
+                        {copiedId === issueKey ? <Check size={12} color="var(--color-ready)" /> : <Copy size={12} />}
                         <span style={{ fontSize: '0.68rem' }}>
                           {copiedId === issueKey ? 'Copied' : 'Copy Fix'}
                         </span>
                       </button>
                     </div>
-                    <p style={{ fontSize: '0.76rem', color: '#cbd5e1', lineHeight: 1.6 }}>
+                    <p style={{ fontSize: '0.76rem', color: 'var(--foreground)', lineHeight: 1.6 }}>
                       {issue.suggestion}
                     </p>
                     {issue.fix_code && (

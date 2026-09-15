@@ -14,7 +14,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ diffText, issues }) => {
     return (
       <div className="glass-panel" style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
         <FileCode size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem auto' }} />
-        <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f8fafc' }}>
+        <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--foreground)' }}>
           No Git Diff Available
         </p>
         <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
@@ -40,8 +40,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ diffText, issues }) => {
       {/* Diff Toolbar / File Switcher Tabs */}
       <div className="diff-toolbar">
         <div className="flex-row items-center gap-2" style={{ flexShrink: 0 }}>
-          <FileDiff size={16} color="#818cf8" />
-          <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f8fafc' }}>
+          <FileDiff size={16} color="var(--primary)" />
+          <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Modified Files ({fileBlocks.length}):
           </span>
         </div>
@@ -71,8 +71,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ diffText, issues }) => {
                       fontWeight: 800,
                       padding: '0.1rem 0.4rem',
                       borderRadius: '10px',
-                      background: '#f43f5e',
-                      color: '#ffffff'
+                      background: 'var(--color-danger)',
+                      color: 'var(--foreground)'
                     }}
                   >
                     {fileIssues.length}
@@ -85,8 +85,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({ diffText, issues }) => {
 
         {/* Diff Stats */}
         <div className="flex-row items-center gap-2" style={{ flexShrink: 0, fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
-          <span style={{ color: '#34d399', fontWeight: 700 }}>+{addCount}</span>
-          <span style={{ color: '#fb7185', fontWeight: 700 }}>-{delCount}</span>
+          <span style={{ color: 'var(--color-ready)', fontWeight: 700 }}>+{addCount}</span>
+          <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>-{delCount}</span>
         </div>
       </div>
 

@@ -198,14 +198,14 @@ export const App: React.FC = () => {
       {toastMessage && (
         <div className="toast-container">
           <div className="toast-item">
-            <Sparkles size={16} color="#818cf8" />
+            <Sparkles size={16} color="var(--primary-orange)" />
             <span>{toastMessage}</span>
           </div>
         </div>
       )}
 
       {/* Footer */}
-      <footer className="footer-root">
+      <footer className="footer-root bg-card">
         AI Code Review Agent — Enterprise Standards Ingestion & Pre-Push Gatekeeper Engine (Python Flask + MySQL + React)
       </footer>
     </div>
