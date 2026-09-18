@@ -9,7 +9,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _diagnosticsManager: DiagnosticsManager
-  ) {}
+  ) { }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -92,7 +92,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
       const edit = new vscode.WorkspaceEdit();
       const lineIdx = Math.max(0, (line || 1) - 1);
-      
+
       if (lineIdx < doc.lineCount) {
         const targetLine = doc.lineAt(lineIdx);
         if (cleanFix === '') {
@@ -109,17 +109,17 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
             const fixLines = cleanFix.split(/\r?\n/);
             let minIndent = Infinity;
             for (const line of fixLines) {
-                if (line.trim().length > 0) {
-                    const match = line.match(/^(\s*)/);
-                    const indentLen = match ? match[1].length : 0;
-                    if (indentLen < minIndent) minIndent = indentLen;
-                }
+              if (line.trim().length > 0) {
+                const match = line.match(/^(\s*)/);
+                const indentLen = match ? match[1].length : 0;
+                if (indentLen < minIndent) minIndent = indentLen;
+              }
             }
             if (minIndent === Infinity) minIndent = 0;
 
             const indentedFixLines = fixLines.map(l => {
-                if (l.trim().length === 0) return leadingIndent;
-                return leadingIndent + l.substring(minIndent);
+              if (l.trim().length === 0) return leadingIndent;
+              return leadingIndent + l.substring(minIndent);
             });
             finalReplacement = indentedFixLines.join('\n');
           }
@@ -189,7 +189,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         const escapedExt = ext.replace('.', '\\.');
         return new RegExp(`\\+\\+\\+ b/.*${escapedExt}(\\s|$)`, 'im').test(diff);
       });
-      
+
       if (!hasMatchingFile) {
         vscode.window.showErrorMessage('Language is not matched');
         this._view.webview.postMessage({ type: 'error', message: 'Language is not matched' });
@@ -255,8 +255,9 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       --bg-color: transparent;
       --card-bg: var(--vscode-editor-background, #1e1e1e);
       --item-bg: var(--vscode-sideBar-background, #252526);
-      --border-color: var(--vscode-panel-border, #333333);
-      --primary-color: #3b82f6;
+      --border-color: var(--vscode-panel-border, #D8D8D8);
+      --orange-border: #FF8A55;
+      --primary-color: #FF5A14;
       --success-color: #10b981;
       --warning-color: #f59e0b;
       --danger-color: #ef4444;
@@ -273,7 +274,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
     h3, h4, h5 { margin: 0 0 6px 0; font-weight: 600; }
     button {
-      background: var(--vscode-button-background, #0e639c);
+      background: var(--vscode-button-background, #FF7A45);
       color: var(--vscode-button-foreground, #ffffff);
       border: none;
       padding: 7px 12px;
@@ -288,6 +289,13 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       transition: background 0.15s ease, opacity 0.15s ease;
     }
     button:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+    #runBtn {
+      background: #FF5A14 !important;
+      color: #ffffff !important;
+    }
+    #runBtn:hover {
+      background: #e65112 !important;
+    }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
       background: var(--vscode-button-secondaryBackground, #3a3d41);
@@ -426,6 +434,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <h3>🛡️ AI Pre-Push Code Review</h3>
+  <h3> AI Pre-Push Code Review2</h3>
   <p style="opacity: 0.8; margin-bottom: 8px; font-size: 11px;">Run multi-agent inspection with instant fix suggestions.</p>
   
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Acceptance Criteria (Optional):</label>
@@ -443,7 +452,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   </select>
   
   <div>
-    <button id="runBtn" style="width: 100%; padding: 8px;" disabled style="opacity: 0.5; cursor: not-allowed;">
+    <button id="runBtn" style="width: 100%; padding: 8px; opacity: 0.5; cursor: not-allowed; border: none;" disabled>
       🔍 Run Review Before Push
     </button>
   </div>
