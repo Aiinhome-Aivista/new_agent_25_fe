@@ -2,7 +2,7 @@
   "name": "ai-code-review-agent",
   "displayName": "AI Code Review Agent (Pre-Push Gatekeeper)",
   "description": "Pre-push AI code review inside VS Code with grounded feedback and push-readiness gatekeeping.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "enterprise-ai",
   "engines": {
     "vscode": "^1.80.0"

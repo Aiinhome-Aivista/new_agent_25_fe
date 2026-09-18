@@ -1,13 +1,19 @@
 import * as vscode from 'vscode';
 
-export class DiagnosticsManager {
+export class DiagnosticsManager implements vscode.CodeActionProvider {
   private diagnosticCollection: vscode.DiagnosticCollection;
+  private _findings: any[] = [];
+
+  public static readonly providedCodeActionKinds = [
+    vscode.CodeActionKind.QuickFix
+  ];
 
   constructor() {
     this.diagnosticCollection = vscode.languages.createDiagnosticCollection('ai-code-review');
   }
 
   public setFindings(findings: any[]) {
+    this._findings = findings || [];
     this.diagnosticCollection.clear();
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) return;
@@ -15,7 +21,7 @@ export class DiagnosticsManager {
     const rootPath = workspaceFolders[0].uri.fsPath;
     const fileDiagnosticsMap = new Map<string, vscode.Diagnostic[]>();
 
-    for (const issue of findings) {
+    for (const issue of this._findings) {
       const filePath = issue.file || issue.file_path;
       if (!filePath) continue;
 
@@ -30,7 +36,10 @@ export class DiagnosticsManager {
       }
 
       const range = new vscode.Range(lineNum, 0, lineNum, 200);
-      let messageStr = `[${issue.category || 'AI Review'}] ${issue.message}\n💡 Suggestion: ${issue.suggestion}`;
+      let messageStr = `[${issue.category || 'AI Review'}] ${issue.message}`;
+      if (issue.suggestion) {
+        messageStr += `\n\n💡 Suggestion: ${issue.suggestion}`;
+      }
       if (issue.fix_code) {
         messageStr += `\n\n🔧 Suggested Fix:\n${issue.fix_code}`;
       }
@@ -54,7 +63,97 @@ export class DiagnosticsManager {
     }
   }
 
+  public provideCodeActions(
+    document: vscode.TextDocument,
+    range: vscode.Range | vscode.Selection,
+    context: vscode.CodeActionContext,
+    _token: vscode.CancellationToken
+  ): vscode.CodeAction[] {
+    const actions: vscode.CodeAction[] = [];
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const rootPath = workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : '';
+
+    const reviewDiagnostics = context.diagnostics.filter(d => d.source === 'AI Code Review Agent');
+    if (reviewDiagnostics.length === 0) return actions;
+
+    for (const diag of reviewDiagnostics) {
+      const line = diag.range.start.line;
+      // Match finding by line and filename
+      const matched = this._findings.filter(f => {
+        const lineNum = Math.max(0, (f.line || f.line_number || 1) - 1);
+        const fPath = (f.file || f.file_path || '').replace(/\\/g, '/').toLowerCase();
+        const docPath = document.uri.fsPath.replace(/\\/g, '/').toLowerCase();
+        return lineNum === line && docPath.endsWith(fPath.split('/').pop() || '');
+      });
+
+      for (const issue of matched) {
+        if (issue.fix_code && !/^(ensure|make sure|you should|please|change the|it is recommended)/i.test(issue.fix_code)) {
+          const fixAction = new vscode.CodeAction(
+            `⚡ Apply AI Fix: ${issue.suggestion ? issue.suggestion.slice(0, 45) + '...' : 'Replace with recommended code'}`,
+            vscode.CodeActionKind.QuickFix
+          );
+          fixAction.diagnostics = [diag];
+          fixAction.isPreferred = true;
+          
+          const edit = new vscode.WorkspaceEdit();
+          // Clean code and preserve indentation
+          const cleanFix = issue.fix_code.replace(/^```[a-zA-Z]*\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
+          const targetLine = document.lineAt(line);
+          const leadingIndentMatch = targetLine.text.match(/^(\s*)/);
+          const leadingIndent = leadingIndentMatch ? leadingIndentMatch[1] : '';
+          let finalReplacement = '';
+          if (targetLine.text.includes('0.0.0.0') && (cleanFix.includes('127.0.0.1') || cleanFix.includes('host=')) && !cleanFix.includes('uvicorn.run') && !cleanFix.includes('app.run')) {
+            finalReplacement = targetLine.text.replace(/['"]0\.0\.0\.0['"]/, '"127.0.0.1"');
+          } else {
+            const indentedFixLines = cleanFix.split(/\r?\n/).map((l: string, i: number) => {
+              if (i === 0 && !l.startsWith(' ') && !l.startsWith('\t')) {
+                return leadingIndent + l;
+              }
+              return l;
+            });
+            finalReplacement = indentedFixLines.join('\n');
+          }
+
+          edit.replace(document.uri, targetLine.range, finalReplacement);
+          fixAction.edit = edit;
+          actions.push(fixAction);
+
+          const copyAction = new vscode.CodeAction(
+            `📋 Copy AI Fix Code`,
+            vscode.CodeActionKind.QuickFix
+          );
+          copyAction.command = {
+            command: 'ai-code-review.copyFix',
+            title: 'Copy AI Fix',
+            arguments: [cleanFix]
+          };
+          actions.push(copyAction);
+        }
+
+        if (issue.suggestion) {
+          const suggestAction = new vscode.CodeAction(
+            `💡 View AI Fix Suggestion Details`,
+            vscode.CodeActionKind.QuickFix
+          );
+          suggestAction.command = {
+            command: 'ai-code-review.showSuggestion',
+            title: 'View AI Fix Suggestion',
+            arguments: [issue]
+          };
+          actions.push(suggestAction);
+        }
+      }
+    }
+
+    return actions;
+  }
+
+  public getFindings(): any[] {
+    return this._findings;
+  }
+
   public clear() {
+    this._findings = [];
     this.diagnosticCollection.clear();
   }
 }
