@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+//
 
 export class DiagnosticsManager implements vscode.CodeActionProvider {
   private diagnosticCollection: vscode.DiagnosticCollection;
