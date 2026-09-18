@@ -36,7 +36,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           break;
         }
         case 'applyFix': {
-          await this.applyFixToCode(data.file, data.line, data.fixCode);
+          await this.applyFixToCode(data.file, data.line, data.fixCode, data.issueIndex);
           break;
         }
         case 'copyToClipboard': {
@@ -71,7 +71,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public async applyFixToCode(filePath: string, line: number, fixCode: string) {
+  public async applyFixToCode(filePath: string, line: number, fixCode: string, issueIndex?: number) {
     if (fixCode === undefined || fixCode === null) {
       vscode.window.showWarningMessage('No valid fix code available to apply.');
       return;
@@ -106,11 +106,20 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           if (targetLine.text.includes('0.0.0.0') && (cleanFix.includes('127.0.0.1') || cleanFix.includes('host=')) && !cleanFix.includes('uvicorn.run') && !cleanFix.includes('app.run')) {
             finalReplacement = targetLine.text.replace(/['"]0\.0\.0\.0['"]/, '"127.0.0.1"');
           } else {
-            const indentedFixLines = cleanFix.split(/\r?\n/).map((l, i) => {
-              if (i === 0 && !l.startsWith(' ') && !l.startsWith('\t')) {
-                return leadingIndent + l;
-              }
-              return l;
+            const fixLines = cleanFix.split(/\r?\n/);
+            let minIndent = Infinity;
+            for (const line of fixLines) {
+                if (line.trim().length > 0) {
+                    const match = line.match(/^(\s*)/);
+                    const indentLen = match ? match[1].length : 0;
+                    if (indentLen < minIndent) minIndent = indentLen;
+                }
+            }
+            if (minIndent === Infinity) minIndent = 0;
+
+            const indentedFixLines = fixLines.map(l => {
+                if (l.trim().length === 0) return leadingIndent;
+                return leadingIndent + l.substring(minIndent);
             });
             finalReplacement = indentedFixLines.join('\n');
           }
@@ -128,6 +137,9 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         editor.selection = new vscode.Selection(pos, pos);
         editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
         vscode.window.showInformationMessage(`✅ Fix applied successfully to ${filePath}:${line || 1}!`);
+        if (this._view && issueIndex !== undefined) {
+          this._view.webview.postMessage({ type: 'fixApplied', issueIndex });
+        }
       } else {
         vscode.window.showErrorMessage(`Failed to apply fix to ${filePath}`);
       }
@@ -488,6 +500,23 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
         statusDiv.innerText = '❌ Error: ' + message.message;
+      } else if (message.type === 'fixApplied') {
+        if (window.currentResult && window.currentResult.issues) {
+           const index = parseInt(message.issueIndex, 10);
+           const issue = window.currentResult.issues[index];
+           if (issue) {
+              if (issue.severity === 'CRITICAL' || issue.severity === 'ERROR') {
+                 window.currentResult.blockingIssues = Math.max(0, (window.currentResult.blockingIssues || 0) - 1);
+              } else if (issue.severity === 'WARNING') {
+                 window.currentResult.warningIssues = Math.max(0, (window.currentResult.warningIssues || 0) - 1);
+              }
+              window.currentResult.issues.splice(index, 1);
+              if (window.currentResult.blockingIssues === 0 && window.currentResult.pushReadiness === 'DO_NOT_PUSH') {
+                 window.currentResult.pushReadiness = window.currentResult.warningIssues > 0 ? 'MINOR_FIXES_REQUIRED' : 'READY';
+              }
+              renderResult(window.currentResult);
+           }
+        }
       }
     });
 
@@ -640,7 +669,8 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           type: 'applyFix',
           file: file,
           line: line,
-          fixCode: issue.fix_code
+          fixCode: issue.fix_code,
+          issueIndex: issueIndex
         });
       }
     }

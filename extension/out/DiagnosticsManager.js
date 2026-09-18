@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DiagnosticsManager = void 0;
 const vscode = require("vscode");
+//
 class DiagnosticsManager {
     constructor() {
         this._findings = [];
