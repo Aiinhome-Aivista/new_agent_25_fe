@@ -555,7 +555,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       
       html += '<div class="stats-row">';
       html += '<span class="stats-chip">🚫 Blockers: <strong>' + (res.blockingIssues || 0) + '</strong></span>';
-      html += '<span class="stats-chip">⚠️ Errors: <strong>' + (res.warningIssues || 0) + '</strong></span>';
+      html += '<span class="stats-chip">⚠️ Warnings: <strong>' + (res.warningIssues || 0) + '</strong></span>';
       html += '<span class="stats-chip">🛡️ Checks Passed: <strong>' + (res.passedChecksCount || (res.passedChecks ? res.passedChecks.length : 0)) + '</strong></span>';
       html += '</div></div>';
 
