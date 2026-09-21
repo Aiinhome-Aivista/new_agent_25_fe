@@ -258,6 +258,9 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       --border-color: var(--vscode-panel-border, #D8D8D8);
       --orange-border: #FF8A55;
       --primary-color: #FF5A14;
+      --hover-orange: #F56B2F;
+      --button-orange: #FF7A45;
+      --button-orange-rgb: 255, 122, 69;
       --success-color: #10b981;
       --warning-color: #f59e0b;
       --danger-color: #ef4444;
@@ -274,8 +277,8 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
     h3, h4, h5 { margin: 0 0 6px 0; font-weight: 600; }
     button {
-      background: var(--vscode-button-background, #FF7A45);
-      color: var(--vscode-button-foreground, #ffffff);
+      background: var(--button-orange);
+      color: #ffffff;
       border: none;
       padding: 7px 12px;
       border-radius: 4px;
@@ -290,26 +293,28 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
     button:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
     #runBtn {
-      background: #FF5A14 !important;
-      color: #ffffff !important;
+      background: var(--primary-color);
+      color: #ffffff;
     }
     #runBtn:hover {
-      background: #e65112 !important;
+      background: var(--hover-orange);
     }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
-      background: var(--vscode-button-secondaryBackground, #3a3d41);
+      background: rgba(var(--button-orange-rgb), 0.2); /* 20% opacity dynamic */
+      border: 1px solid var(--button-orange);
       color: var(--vscode-button-secondaryForeground, #ffffff);
     }
     button.btn-secondary:hover {
-      background: var(--vscode-button-secondaryHoverBackground, #45494e);
+      background: var(--hover-orange);
+      color: #ffffff;
     }
     button.btn-success {
-      background: #059669;
+      background: var(--orange-border);
       color: #ffffff;
     }
     button.btn-success:hover {
-      background: #10b981;
+      background: var(--hover-orange);
     }
     textarea, select {
       width: 100%;
@@ -323,7 +328,58 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       margin-bottom: 8px;
     }
     textarea:focus, select:focus {
-      outline: 1px solid var(--vscode-focusBorder, #007fd4);
+      outline: 1px solid var(--orange-border);
+    }
+    .custom-select-wrapper {
+      position: relative;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+    .custom-select-display {
+      background: var(--vscode-input-background, #3c3c3c);
+      color: var(--vscode-input-foreground, #cccccc);
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .custom-select-wrapper.open .custom-select-display {
+      outline: 1px solid var(--orange-border);
+    }
+    .custom-select-display::after {
+      content: '▼';
+      font-size: 8px;
+      margin-left: 8px;
+    }
+    .custom-select-options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--vscode-input-background, #3c3c3c);
+      border: 1px solid var(--orange-border);
+      border-radius: 4px;
+      margin-top: 4px;
+      z-index: 1000;
+      display: none;
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .custom-select-wrapper.open .custom-select-options {
+      display: block;
+    }
+    .custom-option {
+      padding: 6px 8px;
+      cursor: pointer;
+      color: var(--vscode-input-foreground, #cccccc);
+    }
+    .custom-option:hover, .custom-option.selected {
+      background: var(--orange-border);
+      color: #ffffff;
     }
     .badge {
       display: inline-block;
@@ -434,26 +490,28 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <h3>🛡️ AI Pre-Push Code Review</h3>
-  <h3> AI Pre-Push Code Review2</h3>
   <p style="opacity: 0.8; margin-bottom: 8px; font-size: 11px;">Run multi-agent inspection with instant fix suggestions.</p>
   
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Acceptance Criteria (Optional):</label>
   <textarea id="acInput" rows="3" placeholder="e.g. Reject null email, validate max length, enforce auth..."></textarea>
   
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Language <span style="color:var(--vscode-errorForeground);">*</span>:</label>
-  <select id="langSelect">
-    <option value="" disabled selected>Select Language</option>
-    <option value="python">Python</option>
-    <option value="typescript">TypeScript</option>
-    <option value="javascript">JavaScript</option>
-    <option value="java">Java</option>
-    <option value="go">Go</option>
-    <option value="csharp">C#</option>
-  </select>
+  <div class="custom-select-wrapper" id="customLangSelectWrapper">
+    <div class="custom-select-display" id="customLangSelectDisplay">Select Language</div>
+    <div class="custom-select-options" id="customLangSelectOptions">
+      <div class="custom-option" data-value="python">Python</div>
+      <div class="custom-option" data-value="typescript">TypeScript</div>
+      <div class="custom-option" data-value="javascript">JavaScript</div>
+      <div class="custom-option" data-value="java">Java</div>
+      <div class="custom-option" data-value="go">Go</div>
+      <div class="custom-option" data-value="csharp">C#</div>
+    </div>
+  </div>
+  <input type="hidden" id="langSelect" value="" />
   
   <div>
     <button id="runBtn" style="width: 100%; padding: 8px; opacity: 0.5; cursor: not-allowed; border: none;" disabled>
-      🔍 Run Review Before Push
+      Run Review Before Push
     </button>
   </div>
 
@@ -468,6 +526,34 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     const langSelect = document.getElementById('langSelect');
     const statusDiv = document.getElementById('statusDiv');
     const resultContainer = document.getElementById('resultContainer');
+
+    // Custom dropdown logic
+    const customWrapper = document.getElementById('customLangSelectWrapper');
+    const customDisplay = document.getElementById('customLangSelectDisplay');
+    const customOptions = document.getElementById('customLangSelectOptions');
+
+    customDisplay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      customWrapper.classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => {
+      customWrapper.classList.remove('open');
+    });
+
+    customOptions.querySelectorAll('.custom-option').forEach(option => {
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        customDisplay.innerText = option.innerText;
+        langSelect.value = option.dataset.value;
+        customWrapper.classList.remove('open');
+        
+        customOptions.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        
+        langSelect.dispatchEvent(new Event('change'));
+      });
+    });
 
     langSelect.addEventListener('change', () => {
       if (langSelect.value) {
@@ -617,10 +703,10 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           // Action Buttons
           html += '<div class="btn-row">';
           if (hasValidCode) {
-            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')">⚡ Apply Fix</button>';
-            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')">📋 Copy Fix</button>';
+            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')"> Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')"> Copy Fix</button>';
           }
-          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')">📄 Open File</button>';
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')"> Open File</button>';
           html += '</div>';
 
           html += '</div>';
