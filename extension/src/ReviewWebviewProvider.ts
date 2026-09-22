@@ -46,6 +46,10 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           }
           break;
         }
+        case 'exportDocx': {
+          await this.exportDocxReport(data.sessionId, data.reviewData);
+          break;
+        }
       }
     });
   }
@@ -240,6 +244,52 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     } catch (err: any) {
       vscode.window.showErrorMessage(`AI Code Review Agent Error: ${err.message}`);
       this._view.webview.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
+  private async exportDocxReport(sessionId: string | undefined, reviewData: any) {
+    try {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      const defaultUri = workspaceFolders && workspaceFolders.length > 0 
+        ? vscode.Uri.joinPath(workspaceFolders[0].uri, `Code_Review_Report_${sessionId || 'Unsaved'}.docx`)
+        : undefined;
+
+      const saveUri = await vscode.window.showSaveDialog({
+        defaultUri,
+        filters: { 'Word Documents': ['docx'] },
+        saveLabel: 'Export Report'
+      });
+
+      if (!saveUri) return;
+
+      const config = vscode.workspace.getConfiguration('aiCodeReview');
+      const backendUrl = config.get<string>('backendUrl', 'http://localhost:5000');
+      
+      let response;
+      if (sessionId) {
+        response = await fetch(`${backendUrl}/api/v1/reviews/${sessionId}/export-docx`);
+      } else {
+        response = await fetch(`${backendUrl}/api/v1/reviews/export-docx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reviewData)
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to export report: ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      await vscode.workspace.fs.writeFile(saveUri, new Uint8Array(arrayBuffer));
+
+      const openAction = 'Open File';
+      const selection = await vscode.window.showInformationMessage('Report exported successfully!', openAction);
+      if (selection === openAction) {
+        vscode.env.openExternal(saveUri);
+      }
+    } catch (err: any) {
+      vscode.window.showErrorMessage(`Error exporting report: ${err.message}`);
     }
   }
 
@@ -643,7 +693,8 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
       let html = '<div class="card">';
       html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
-      html += '<strong>Push Verdict:</strong> <span class="badge ' + badgeClass + '">' + (res.pushReadiness || 'UNKNOWN') + '</span>';
+      html += '<div><strong>Push Verdict:</strong> <span class="badge ' + badgeClass + '">' + (res.pushReadiness || 'UNKNOWN') + '</span></div>';
+      html += '<button class="btn-sm btn-secondary" onclick="exportDocx(\\'' + (res.session ? res.session.id : '') + '\\')">📄 Export Report</button>';
       html += '</div>';
       
       html += '<p style="margin: 8px 0; font-size: 11px; line-height: 1.4;">' + escapeHtml(res.summary || '') + '</p>';
@@ -779,6 +830,14 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           message: 'Copied fix code to clipboard!'
         });
       }
+    }
+
+    function exportDocx(sessionId) {
+      vscode.postMessage({
+        type: 'exportDocx',
+        sessionId: sessionId,
+        reviewData: window.currentResult
+      });
     }
   </script>
 </body>
