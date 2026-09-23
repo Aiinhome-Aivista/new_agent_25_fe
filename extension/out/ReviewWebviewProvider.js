@@ -40,6 +40,11 @@ class ReviewWebviewProvider {
                     await this.exportDocxReport(data.sessionId, data.reviewData);
                     break;
                 }
+                case 'indexWorkspace': {
+                    // Extension command trigger করো
+                    vscode.commands.executeCommand('aiCodeReview.indexWorkspace');
+                    break;
+                }
             }
         });
     }
@@ -83,10 +88,21 @@ class ReviewWebviewProvider {
             const edit = new vscode.WorkspaceEdit();
             const lineIdx = Math.max(0, (line || 1) - 1);
             if (lineIdx < doc.lineCount) {
+                let replaceRange = doc.lineAt(lineIdx).rangeIncludingLineBreak;
+                let replaceRangeWithoutBreak = doc.lineAt(lineIdx).range;
+                // If end_line exists for this issue, we delete the entire block
+                if (issueIndex !== undefined && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
+                    const issue = this._latestReviewData.issues[issueIndex];
+                    if (issue.end_line) {
+                        const endLineIdx = Math.max(lineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.line || 1) - 1));
+                        replaceRange = new vscode.Range(lineIdx, 0, endLineIdx + 1, 0); // Include break for block
+                        replaceRangeWithoutBreak = new vscode.Range(lineIdx, 0, endLineIdx, doc.lineAt(endLineIdx).text.length);
+                    }
+                }
                 const targetLine = doc.lineAt(lineIdx);
                 if (cleanFix === '') {
-                    // Deleting stray line
-                    edit.delete(uri, targetLine.rangeIncludingLineBreak);
+                    // Deleting line(s)
+                    edit.delete(uri, replaceRange);
                 }
                 else {
                     // Preserve original leading whitespace/indentation
@@ -116,7 +132,7 @@ class ReviewWebviewProvider {
                         });
                         finalReplacement = indentedFixLines.join('\n');
                     }
-                    edit.replace(uri, targetLine.range, finalReplacement);
+                    edit.replace(uri, replaceRangeWithoutBreak, finalReplacement);
                 }
             }
             else if (cleanFix !== '') {
@@ -140,6 +156,18 @@ class ReviewWebviewProvider {
         }
         catch (err) {
             vscode.window.showErrorMessage(`Error applying fix: ${err.message}`);
+        }
+    }
+    /**
+     * Index complete হলে extension.ts থেকে call হয় — webview-কে notify করে।
+     */
+    notifyIndexComplete(result) {
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: 'indexComplete',
+                indexedFiles: result.indexedFiles,
+                totalChunks: result.totalChunks
+            });
         }
     }
     async executeReview(acceptanceCriteria = '', language = 'typescript') {
@@ -204,6 +232,7 @@ class ReviewWebviewProvider {
                 throw new Error(`Server returned HTTP ${response.status}`);
             }
             const reviewData = await response.json();
+            this._latestReviewData = reviewData;
             // Update native VS Code diagnostics in code editor
             this._diagnosticsManager.setFindings(reviewData.issues || []);
             // Notify Webview
@@ -515,7 +544,13 @@ class ReviewWebviewProvider {
 <body>
   <h3>🛡️ AI Pre-Push Code Review</h3>
   <p style="opacity: 0.8; margin-bottom: 8px; font-size: 11px;">Run multi-agent inspection with instant fix suggestions.</p>
-  
+
+  <!-- Codebase Index Status Bar -->
+  <div id="indexStatusBar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 6px 8px; background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px;">
+    <span id="indexStatusText" style="opacity: 0.8;">⚪ Codebase not indexed</span>
+    <button id="indexBtn" class="btn-sm btn-secondary" onclick="indexCodebase()" style="font-size: 10px; padding: 3px 8px;">🗂️ Index Workspace</button>
+  </div>
+
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Acceptance Criteria (Optional):</label>
   <textarea id="acInput" rows="3" placeholder="e.g. Reject null email, validate max length, enforce auth..."></textarea>
   
@@ -619,6 +654,18 @@ class ReviewWebviewProvider {
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
         statusDiv.innerText = '❌ Error: ' + message.message;
+      } else if (message.type === 'indexComplete') {
+        // Index সম্পূর্ণ হলে status badge update
+        const indexStatusText = document.getElementById('indexStatusText');
+        const indexBtn = document.getElementById('indexBtn');
+        if (indexStatusText) {
+          indexStatusText.innerHTML = '✅ <strong>' + message.indexedFiles + '</strong> files indexed (' + message.totalChunks + ' chunks)';
+          indexStatusText.style.color = 'var(--success-color)';
+          indexStatusText.style.opacity = '1';
+        }
+        if (indexBtn) {
+          indexBtn.innerText = '🔄 Re-index';
+        }
       } else if (message.type === 'fixApplied') {
         if (window.currentResult && window.currentResult.issues) {
            const index = parseInt(message.issueIndex, 10);
@@ -774,6 +821,31 @@ class ReviewWebviewProvider {
         html += '</details>';
       }
 
+      // Duplicate Code Section
+      if (res.duplicates && res.duplicates.length > 0) {
+        html += '<div class="section-title">';
+        html += '<span>🔁 Duplicate Code Detected (' + res.duplicates.length + ')</span>';
+        html += '</div>';
+        res.duplicates.forEach((dup) => {
+          html += '<div class="finding-card severity-WARNING" style="border-left-color: #a78bfa;">';
+          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
+          html += '<span class="badge" style="background: rgba(167,139,250,0.2); color: #c4b5fd; border: 1px solid #7c3aed;">DUPLICATE</span>';
+          html += '<span style="font-size: 10px; opacity: 0.8;">Code Duplication</span>';
+          html += '</div>';
+          html += '<div style="font-size: 11px; margin-bottom: 4px;">';
+          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(dup.file) + '\\', ' + (dup.line || 0) + ')">📄 ' + escapeHtml(dup.file) + (dup.line ? ':' + dup.line : '') + '</span>';
+          html += '</div>';
+          html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 4px;">' + escapeHtml(dup.message) + '</div>';
+          if (dup.suggestion) {
+            html += '<div class="suggestion-box"><strong>💡 Fix:</strong> ' + escapeHtml(dup.suggestion) + '</div>';
+          }
+          if (dup.duplicate_in_file) {
+            html += '<div class="btn-row"><button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(dup.duplicate_in_file) + '\\', ' + (dup.duplicate_at_line || 0) + ')">📂 Go to Original</button></div>';
+          }
+          html += '</div>';
+        });
+      }
+
       window.currentResult = res;
       resultContainer.innerHTML = html;
     }
@@ -812,6 +884,25 @@ class ReviewWebviewProvider {
         sessionId: sessionId,
         reviewData: window.currentResult
       });
+    }
+
+    function indexCodebase() {
+      const indexBtn = document.getElementById('indexBtn');
+      const indexStatusText = document.getElementById('indexStatusText');
+      if (indexBtn) {
+        indexBtn.disabled = true;
+        indexBtn.innerText = '⏳ Indexing...';
+      }
+      if (indexStatusText) {
+        indexStatusText.innerHTML = '⏳ Indexing workspace...';
+        indexStatusText.style.color = '';
+        indexStatusText.style.opacity = '0.8';
+      }
+      vscode.postMessage({ type: 'indexWorkspace' });
+      // Progress notification VS Code-এ দেখাবে, indexComplete message-এ status update হবে
+      setTimeout(() => {
+        if (indexBtn) indexBtn.disabled = false;
+      }, 3000);
     }
   </script>
 </body>
