@@ -754,6 +754,9 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       html += '<span class="stats-chip">🚫 Blockers: <strong>' + (res.blockingIssues || 0) + '</strong></span>';
       html += '<span class="stats-chip">⚠️ Warnings: <strong>' + (res.warningIssues || 0) + '</strong></span>';
       html += '<span class="stats-chip">🛡️ Checks Passed: <strong>' + (res.passedChecksCount || (res.passedChecks ? res.passedChecks.length : 0)) + '</strong></span>';
+      if (res.missingTestsCount !== undefined || (res.missingTests && res.missingTests.length > 0)) {
+         html += '<span class="stats-chip">🧪 Missing Tests: <strong>' + (res.missingTestsCount || (res.missingTests ? res.missingTests.length : 0)) + '</strong></span>';
+      }
       html += '</div></div>';
 
       // 1. Grounded Findings & Fix Suggestions
@@ -784,6 +787,16 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           // Defect Message
           html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 6px;">' + escapeHtml(issue.message) + '</div>';
 
+          // Relevant Files
+          if (issue.relevant_files && issue.relevant_files.length > 0) {
+            html += '<div style="margin-bottom: 6px; font-size: 10px;">';
+            html += '<strong style="color: var(--vscode-textLink-foreground);">🔗 Relevant Files:</strong> ';
+            issue.relevant_files.forEach((file) => {
+               html += '<span class="clickable-file" style="margin-right: 4px; padding: 2px 4px; background: rgba(128,128,128,0.2); border-radius: 3px;" onclick="openIssueFile(\\'' + escapeHtml(file) + '\\', 0)">' + escapeHtml(file) + '</span>';
+            });
+            html += '</div>';
+          }
+
           // Fix Suggestion Box
           if (issue.suggestion) {
             html += '<div class="suggestion-box">';
@@ -811,6 +824,27 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')"> Open File</button>';
           html += '</div>';
 
+          html += '</div>';
+        });
+      }
+
+      // 1.5 Missing Test Cases & Edge Cases
+      if (res.missingTests && res.missingTests.length > 0) {
+        html += '<div class="section-title">';
+        html += '<span>🧪 Missing Test Cases & Edge Cases (' + res.missingTests.length + ')</span>';
+        html += '</div>';
+        
+        res.missingTests.forEach((mt) => {
+          let typeIcon = '📝';
+          if (mt.scenario_type === 'edge_case') typeIcon = '⚠️';
+          else if (mt.scenario_type === 'negative_path') typeIcon = '⛔';
+          else if (mt.scenario_type === 'regression') typeIcon = '🔄';
+
+          html += '<div class="finding-card" style="border-left-color: #3b82f6;">';
+          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
+          html += '<span class="badge" style="background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid #3b82f6; font-size: 9px;">' + escapeHtml((mt.scenario_type || 'TEST').toUpperCase().replace('_', ' ')) + '</span>';
+          html += '</div>';
+          html += '<div style="font-weight: 600; font-size: 11px;">' + typeIcon + ' ' + escapeHtml(mt.description) + '</div>';
           html += '</div>';
         });
       }
