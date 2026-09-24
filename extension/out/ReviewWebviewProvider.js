@@ -36,6 +36,15 @@ class ReviewWebviewProvider {
                     }
                     break;
                 }
+                case 'exportDocx': {
+                    await this.exportDocxReport(data.sessionId, data.reviewData);
+                    break;
+                }
+                case 'indexWorkspace': {
+                    // Extension command trigger করো
+                    vscode.commands.executeCommand('aiCodeReview.indexWorkspace');
+                    break;
+                }
             }
         });
     }
@@ -79,10 +88,21 @@ class ReviewWebviewProvider {
             const edit = new vscode.WorkspaceEdit();
             const lineIdx = Math.max(0, (line || 1) - 1);
             if (lineIdx < doc.lineCount) {
+                let replaceRange = doc.lineAt(lineIdx).rangeIncludingLineBreak;
+                let replaceRangeWithoutBreak = doc.lineAt(lineIdx).range;
+                // If end_line exists for this issue, we delete the entire block
+                if (issueIndex !== undefined && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
+                    const issue = this._latestReviewData.issues[issueIndex];
+                    if (issue.end_line) {
+                        const endLineIdx = Math.max(lineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.line || 1) - 1));
+                        replaceRange = new vscode.Range(lineIdx, 0, endLineIdx + 1, 0); // Include break for block
+                        replaceRangeWithoutBreak = new vscode.Range(lineIdx, 0, endLineIdx, doc.lineAt(endLineIdx).text.length);
+                    }
+                }
                 const targetLine = doc.lineAt(lineIdx);
                 if (cleanFix === '') {
-                    // Deleting stray line
-                    edit.delete(uri, targetLine.rangeIncludingLineBreak);
+                    // Deleting line(s)
+                    edit.delete(uri, replaceRange);
                 }
                 else {
                     // Preserve original leading whitespace/indentation
@@ -112,7 +132,7 @@ class ReviewWebviewProvider {
                         });
                         finalReplacement = indentedFixLines.join('\n');
                     }
-                    edit.replace(uri, targetLine.range, finalReplacement);
+                    edit.replace(uri, replaceRangeWithoutBreak, finalReplacement);
                 }
             }
             else if (cleanFix !== '') {
@@ -136,6 +156,18 @@ class ReviewWebviewProvider {
         }
         catch (err) {
             vscode.window.showErrorMessage(`Error applying fix: ${err.message}`);
+        }
+    }
+    /**
+     * Index complete হলে extension.ts থেকে call হয় — webview-কে notify করে।
+     */
+    notifyIndexComplete(result) {
+        if (this._view) {
+            this._view.webview.postMessage({
+                type: 'indexComplete',
+                indexedFiles: result.indexedFiles,
+                totalChunks: result.totalChunks
+            });
         }
     }
     async executeReview(acceptanceCriteria = '', language = 'typescript') {
@@ -200,6 +232,7 @@ class ReviewWebviewProvider {
                 throw new Error(`Server returned HTTP ${response.status}`);
             }
             const reviewData = await response.json();
+            this._latestReviewData = reviewData;
             // Update native VS Code diagnostics in code editor
             this._diagnosticsManager.setFindings(reviewData.issues || []);
             // Notify Webview
@@ -222,6 +255,47 @@ class ReviewWebviewProvider {
             this._view.webview.postMessage({ type: 'error', message: err.message });
         }
     }
+    async exportDocxReport(sessionId, reviewData) {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            const defaultUri = workspaceFolders && workspaceFolders.length > 0
+                ? vscode.Uri.joinPath(workspaceFolders[0].uri, `Code_Review_Report_${sessionId || 'Unsaved'}.docx`)
+                : undefined;
+            const saveUri = await vscode.window.showSaveDialog({
+                defaultUri,
+                filters: { 'Word Documents': ['docx'] },
+                saveLabel: 'Export Report'
+            });
+            if (!saveUri)
+                return;
+            const config = vscode.workspace.getConfiguration('aiCodeReview');
+            const backendUrl = config.get('backendUrl', 'http://localhost:5000');
+            let response;
+            if (sessionId) {
+                response = await fetch(`${backendUrl}/api/v1/reviews/${sessionId}/export-docx`);
+            }
+            else {
+                response = await fetch(`${backendUrl}/api/v1/reviews/export-docx`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reviewData)
+                });
+            }
+            if (!response.ok) {
+                throw new Error(`Failed to export report: ${response.statusText}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            await vscode.workspace.fs.writeFile(saveUri, new Uint8Array(arrayBuffer));
+            const openAction = 'Open File';
+            const selection = await vscode.window.showInformationMessage('Report exported successfully!', openAction);
+            if (selection === openAction) {
+                vscode.env.openExternal(saveUri);
+            }
+        }
+        catch (err) {
+            vscode.window.showErrorMessage(`Error exporting report: ${err.message}`);
+        }
+    }
     _getHtmlForWebview(webview) {
         return `<!DOCTYPE html>
 <html lang="en">
@@ -234,8 +308,12 @@ class ReviewWebviewProvider {
       --bg-color: transparent;
       --card-bg: var(--vscode-editor-background, #1e1e1e);
       --item-bg: var(--vscode-sideBar-background, #252526);
-      --border-color: var(--vscode-panel-border, #333333);
-      --primary-color: #3b82f6;
+      --border-color: var(--vscode-panel-border, #D8D8D8);
+      --orange-border: #FF8A55;
+      --primary-color: #FF5A14;
+      --hover-orange: #F56B2F;
+      --button-orange: #FF7A45;
+      --button-orange-rgb: 255, 122, 69;
       --success-color: #10b981;
       --warning-color: #f59e0b;
       --danger-color: #ef4444;
@@ -252,8 +330,8 @@ class ReviewWebviewProvider {
     }
     h3, h4, h5 { margin: 0 0 6px 0; font-weight: 600; }
     button {
-      background: var(--vscode-button-background, #0e639c);
-      color: var(--vscode-button-foreground, #ffffff);
+      background: var(--button-orange);
+      color: #ffffff;
       border: none;
       padding: 7px 12px;
       border-radius: 4px;
@@ -267,20 +345,29 @@ class ReviewWebviewProvider {
       transition: background 0.15s ease, opacity 0.15s ease;
     }
     button:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+    #runBtn {
+      background: var(--primary-color);
+      color: #ffffff;
+    }
+    #runBtn:hover {
+      background: var(--hover-orange);
+    }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
-      background: var(--vscode-button-secondaryBackground, #3a3d41);
+      background: rgba(var(--button-orange-rgb), 0.2); /* 20% opacity dynamic */
+      border: 1px solid var(--button-orange);
       color: var(--vscode-button-secondaryForeground, #ffffff);
     }
     button.btn-secondary:hover {
-      background: var(--vscode-button-secondaryHoverBackground, #45494e);
+      background: var(--hover-orange);
+      color: #ffffff;
     }
     button.btn-success {
-      background: #059669;
+      background: var(--orange-border);
       color: #ffffff;
     }
     button.btn-success:hover {
-      background: #10b981;
+      background: var(--hover-orange);
     }
     textarea, select {
       width: 100%;
@@ -294,7 +381,58 @@ class ReviewWebviewProvider {
       margin-bottom: 8px;
     }
     textarea:focus, select:focus {
-      outline: 1px solid var(--vscode-focusBorder, #007fd4);
+      outline: 1px solid var(--orange-border);
+    }
+    .custom-select-wrapper {
+      position: relative;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+    .custom-select-display {
+      background: var(--vscode-input-background, #3c3c3c);
+      color: var(--vscode-input-foreground, #cccccc);
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      padding: 6px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .custom-select-wrapper.open .custom-select-display {
+      outline: 1px solid var(--orange-border);
+    }
+    .custom-select-display::after {
+      content: '▼';
+      font-size: 8px;
+      margin-left: 8px;
+    }
+    .custom-select-options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--vscode-input-background, #3c3c3c);
+      border: 1px solid var(--orange-border);
+      border-radius: 4px;
+      margin-top: 4px;
+      z-index: 1000;
+      display: none;
+      max-height: 200px;
+      overflow-y: auto;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .custom-select-wrapper.open .custom-select-options {
+      display: block;
+    }
+    .custom-option {
+      padding: 6px 8px;
+      cursor: pointer;
+      color: var(--vscode-input-foreground, #cccccc);
+    }
+    .custom-option:hover, .custom-option.selected {
+      background: var(--orange-border);
+      color: #ffffff;
     }
     .badge {
       display: inline-block;
@@ -406,24 +544,33 @@ class ReviewWebviewProvider {
 <body>
   <h3>🛡️ AI Pre-Push Code Review</h3>
   <p style="opacity: 0.8; margin-bottom: 8px; font-size: 11px;">Run multi-agent inspection with instant fix suggestions.</p>
-  
+
+  <!-- Codebase Index Status Bar -->
+  <div id="indexStatusBar" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 6px 8px; background: var(--item-bg); border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px;">
+    <span id="indexStatusText" style="opacity: 0.8;">⚪ Codebase not indexed</span>
+    <button id="indexBtn" class="btn-sm btn-secondary" onclick="indexCodebase()" style="font-size: 10px; padding: 3px 8px;">🗂️ Index Workspace</button>
+  </div>
+
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Acceptance Criteria (Optional):</label>
   <textarea id="acInput" rows="3" placeholder="e.g. Reject null email, validate max length, enforce auth..."></textarea>
   
   <label style="font-weight: 600; display: block; margin-bottom: 4px;">Language <span style="color:var(--vscode-errorForeground);">*</span>:</label>
-  <select id="langSelect">
-    <option value="" disabled selected>Select Language</option>
-    <option value="python">Python</option>
-    <option value="typescript">TypeScript</option>
-    <option value="javascript">JavaScript</option>
-    <option value="java">Java</option>
-    <option value="go">Go</option>
-    <option value="csharp">C#</option>
-  </select>
+  <div class="custom-select-wrapper" id="customLangSelectWrapper">
+    <div class="custom-select-display" id="customLangSelectDisplay">Select Language</div>
+    <div class="custom-select-options" id="customLangSelectOptions">
+      <div class="custom-option" data-value="python">Python</div>
+      <div class="custom-option" data-value="typescript">TypeScript</div>
+      <div class="custom-option" data-value="javascript">JavaScript</div>
+      <div class="custom-option" data-value="java">Java</div>
+      <div class="custom-option" data-value="go">Go</div>
+      <div class="custom-option" data-value="csharp">C#</div>
+    </div>
+  </div>
+  <input type="hidden" id="langSelect" value="" />
   
   <div>
-    <button id="runBtn" style="width: 100%; padding: 8px;" disabled style="opacity: 0.5; cursor: not-allowed;">
-      🔍 Run Review Before Push
+    <button id="runBtn" style="width: 100%; padding: 8px; opacity: 0.5; cursor: not-allowed; border: none;" disabled>
+      Run Review Before Push
     </button>
   </div>
 
@@ -438,6 +585,34 @@ class ReviewWebviewProvider {
     const langSelect = document.getElementById('langSelect');
     const statusDiv = document.getElementById('statusDiv');
     const resultContainer = document.getElementById('resultContainer');
+
+    // Custom dropdown logic
+    const customWrapper = document.getElementById('customLangSelectWrapper');
+    const customDisplay = document.getElementById('customLangSelectDisplay');
+    const customOptions = document.getElementById('customLangSelectOptions');
+
+    customDisplay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      customWrapper.classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => {
+      customWrapper.classList.remove('open');
+    });
+
+    customOptions.querySelectorAll('.custom-option').forEach(option => {
+      option.addEventListener('click', (e) => {
+        e.stopPropagation();
+        customDisplay.innerText = option.innerText;
+        langSelect.value = option.dataset.value;
+        customWrapper.classList.remove('open');
+        
+        customOptions.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        
+        langSelect.dispatchEvent(new Event('change'));
+      });
+    });
 
     langSelect.addEventListener('change', () => {
       if (langSelect.value) {
@@ -479,6 +654,18 @@ class ReviewWebviewProvider {
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
         statusDiv.innerText = '❌ Error: ' + message.message;
+      } else if (message.type === 'indexComplete') {
+        // Index সম্পূর্ণ হলে status badge update
+        const indexStatusText = document.getElementById('indexStatusText');
+        const indexBtn = document.getElementById('indexBtn');
+        if (indexStatusText) {
+          indexStatusText.innerHTML = '✅ <strong>' + message.indexedFiles + '</strong> files indexed (' + message.totalChunks + ' chunks)';
+          indexStatusText.style.color = 'var(--success-color)';
+          indexStatusText.style.opacity = '1';
+        }
+        if (indexBtn) {
+          indexBtn.innerText = '🔄 Re-index';
+        }
       } else if (message.type === 'fixApplied') {
         if (window.currentResult && window.currentResult.issues) {
            const index = parseInt(message.issueIndex, 10);
@@ -527,7 +714,8 @@ class ReviewWebviewProvider {
 
       let html = '<div class="card">';
       html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
-      html += '<strong>Push Verdict:</strong> <span class="badge ' + badgeClass + '">' + (res.pushReadiness || 'UNKNOWN') + '</span>';
+      html += '<div><strong>Push Verdict:</strong> <span class="badge ' + badgeClass + '">' + (res.pushReadiness || 'UNKNOWN') + '</span></div>';
+      html += '<button class="btn-sm btn-secondary" onclick="exportDocx(\\'' + (res.session ? res.session.id : '') + '\\')">📄 Export Report</button>';
       html += '</div>';
       
       html += '<p style="margin: 8px 0; font-size: 11px; line-height: 1.4;">' + escapeHtml(res.summary || '') + '</p>';
@@ -588,10 +776,10 @@ class ReviewWebviewProvider {
           // Action Buttons
           html += '<div class="btn-row">';
           if (hasValidCode) {
-            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')">⚡ Apply Fix</button>';
-            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')">📋 Copy Fix</button>';
+            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')"> Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')"> Copy Fix</button>';
           }
-          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')">📄 Open File</button>';
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')"> Open File</button>';
           html += '</div>';
 
           html += '</div>';
@@ -683,6 +871,27 @@ class ReviewWebviewProvider {
           html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', 0)">📄 Open File</button>';
           html += '</div>';
 
+      // Duplicate Code Section
+      if (res.duplicates && res.duplicates.length > 0) {
+        html += '<div class="section-title">';
+        html += '<span>🔁 Duplicate Code Detected (' + res.duplicates.length + ')</span>';
+        html += '</div>';
+        res.duplicates.forEach((dup) => {
+          html += '<div class="finding-card severity-WARNING" style="border-left-color: #a78bfa;">';
+          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
+          html += '<span class="badge" style="background: rgba(167,139,250,0.2); color: #c4b5fd; border: 1px solid #7c3aed;">DUPLICATE</span>';
+          html += '<span style="font-size: 10px; opacity: 0.8;">Code Duplication</span>';
+          html += '</div>';
+          html += '<div style="font-size: 11px; margin-bottom: 4px;">';
+          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(dup.file) + '\\', ' + (dup.line || 0) + ')">📄 ' + escapeHtml(dup.file) + (dup.line ? ':' + dup.line : '') + '</span>';
+          html += '</div>';
+          html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 4px;">' + escapeHtml(dup.message) + '</div>';
+          if (dup.suggestion) {
+            html += '<div class="suggestion-box"><strong>💡 Fix:</strong> ' + escapeHtml(dup.suggestion) + '</div>';
+          }
+          if (dup.duplicate_in_file) {
+            html += '<div class="btn-row"><button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(dup.duplicate_in_file) + '\\', ' + (dup.duplicate_at_line || 0) + ')">📂 Go to Original</button></div>';
+          }
           html += '</div>';
         });
       }
@@ -728,6 +937,31 @@ class ReviewWebviewProvider {
           message: 'Copied test code to clipboard!'
         });
       }
+    function exportDocx(sessionId) {
+      vscode.postMessage({
+        type: 'exportDocx',
+        sessionId: sessionId,
+        reviewData: window.currentResult
+      });
+    }
+
+    function indexCodebase() {
+      const indexBtn = document.getElementById('indexBtn');
+      const indexStatusText = document.getElementById('indexStatusText');
+      if (indexBtn) {
+        indexBtn.disabled = true;
+        indexBtn.innerText = '⏳ Indexing...';
+      }
+      if (indexStatusText) {
+        indexStatusText.innerHTML = '⏳ Indexing workspace...';
+        indexStatusText.style.color = '';
+        indexStatusText.style.opacity = '0.8';
+      }
+      vscode.postMessage({ type: 'indexWorkspace' });
+      // Progress notification VS Code-এ দেখাবে, indexComplete message-এ status update হবে
+      setTimeout(() => {
+        if (indexBtn) indexBtn.disabled = false;
+      }, 3000);
     }
   </script>
 </body>

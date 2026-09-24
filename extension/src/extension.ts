@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ReviewWebviewProvider } from './ReviewWebviewProvider';
 import { DiagnosticsManager } from './DiagnosticsManager';
+import { WorkspaceIndexer } from './WorkspaceIndexer';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('AI Code Review Agent extension activated.');
@@ -56,7 +57,47 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  context.subscriptions.push(reviewCmd, clearCmd, copyFixCmd, showSuggestionCmd);
+  // Register "Index Workspace" Command — manual codebase indexing
+  const indexCmd = vscode.commands.registerCommand('aiCodeReview.indexWorkspace', async () => {
+    const config = vscode.workspace.getConfiguration('aiCodeReview');
+    const backendUrl = config.get<string>('backendUrl', 'http://localhost:5000');
+
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: '🗂️ AI Code Review: Indexing Workspace...',
+        cancellable: false,
+      },
+      async (progress) => {
+        progress.report({ message: 'Scanning workspace files...' });
+
+        try {
+          const result = await WorkspaceIndexer.indexWorkspace(
+            backendUrl,
+            (prog) => {
+              const pct = Math.round((prog.indexed / prog.total) * 100);
+              progress.report({
+                message: `${prog.indexed}/${prog.total} files (${pct}%)`,
+                increment: (1 / prog.total) * 100,
+              });
+            }
+          );
+
+          vscode.window.showInformationMessage(
+            `✅ Workspace indexed! ${result.indexedFiles} files, ${result.totalChunks} code chunks ready for context-aware review.`
+          );
+
+          // Webview-এ status update পাঠাও
+          provider.notifyIndexComplete(result);
+        } catch (err: any) {
+          vscode.window.showErrorMessage(`❌ Indexing failed: ${err.message}`);
+        }
+      }
+    );
+  });
+
+  context.subscriptions.push(reviewCmd, clearCmd, copyFixCmd, showSuggestionCmd, indexCmd);
 }
 
 export function deactivate() {}
+

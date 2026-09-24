@@ -5,6 +5,7 @@ exports.deactivate = deactivate;
 const vscode = require("vscode");
 const ReviewWebviewProvider_1 = require("./ReviewWebviewProvider");
 const DiagnosticsManager_1 = require("./DiagnosticsManager");
+const WorkspaceIndexer_1 = require("./WorkspaceIndexer");
 function activate(context) {
     console.log('AI Code Review Agent extension activated.');
     const diagnosticsManager = new DiagnosticsManager_1.DiagnosticsManager();
@@ -40,7 +41,34 @@ function activate(context) {
             await provider.applyFixToCode(issue.file || '', issue.line || 1, issue.fix_code);
         }
     });
-    context.subscriptions.push(reviewCmd, clearCmd, copyFixCmd, showSuggestionCmd);
+    // Register "Index Workspace" Command — manual codebase indexing
+    const indexCmd = vscode.commands.registerCommand('aiCodeReview.indexWorkspace', async () => {
+        const config = vscode.workspace.getConfiguration('aiCodeReview');
+        const backendUrl = config.get('backendUrl', 'http://localhost:5000');
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: '🗂️ AI Code Review: Indexing Workspace...',
+            cancellable: false,
+        }, async (progress) => {
+            progress.report({ message: 'Scanning workspace files...' });
+            try {
+                const result = await WorkspaceIndexer_1.WorkspaceIndexer.indexWorkspace(backendUrl, (prog) => {
+                    const pct = Math.round((prog.indexed / prog.total) * 100);
+                    progress.report({
+                        message: `${prog.indexed}/${prog.total} files (${pct}%)`,
+                        increment: (1 / prog.total) * 100,
+                    });
+                });
+                vscode.window.showInformationMessage(`✅ Workspace indexed! ${result.indexedFiles} files, ${result.totalChunks} code chunks ready for context-aware review.`);
+                // Webview-এ status update পাঠাও
+                provider.notifyIndexComplete(result);
+            }
+            catch (err) {
+                vscode.window.showErrorMessage(`❌ Indexing failed: ${err.message}`);
+            }
+        });
+    });
+    context.subscriptions.push(reviewCmd, clearCmd, copyFixCmd, showSuggestionCmd, indexCmd);
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

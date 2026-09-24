@@ -75,11 +75,16 @@ class DiagnosticsManager {
                     const targetLine = document.lineAt(line);
                     const leadingIndentMatch = targetLine.text.match(/^(\s*)/);
                     const leadingIndent = leadingIndentMatch ? leadingIndentMatch[1] : '';
+                    let replaceRange = targetLine.range;
+                    if (issue.end_line) {
+                        const endLineIdx = Math.max(line, Math.min(document.lineCount - 1, issue.end_line - 1));
+                        replaceRange = new vscode.Range(line, 0, endLineIdx, document.lineAt(endLineIdx).text.length);
+                    }
                     let finalReplacement = '';
                     if (targetLine.text.includes('0.0.0.0') && (cleanFix.includes('127.0.0.1') || cleanFix.includes('host=')) && !cleanFix.includes('uvicorn.run') && !cleanFix.includes('app.run')) {
                         finalReplacement = targetLine.text.replace(/['"]0\.0\.0\.0['"]/, '"127.0.0.1"');
                     }
-                    else {
+                    else if (cleanFix !== '') {
                         const indentedFixLines = cleanFix.split(/\r?\n/).map((l, i) => {
                             if (i === 0 && !l.startsWith(' ') && !l.startsWith('\t')) {
                                 return leadingIndent + l;
@@ -88,7 +93,18 @@ class DiagnosticsManager {
                         });
                         finalReplacement = indentedFixLines.join('\n');
                     }
-                    edit.replace(document.uri, targetLine.range, finalReplacement);
+                    if (cleanFix === '') {
+                        // For deletions, try to include the line break if possible
+                        let deleteRange = targetLine.rangeIncludingLineBreak;
+                        if (issue.end_line) {
+                            const endLineIdx = Math.max(line, Math.min(document.lineCount - 1, issue.end_line - 1));
+                            deleteRange = new vscode.Range(line, 0, endLineIdx + 1, 0); // Include break for block
+                        }
+                        edit.delete(document.uri, deleteRange);
+                    }
+                    else {
+                        edit.replace(document.uri, replaceRange, finalReplacement);
+                    }
                     fixAction.edit = edit;
                     actions.push(fixAction);
                     const copyAction = new vscode.CodeAction(`📋 Copy AI Fix Code`, vscode.CodeActionKind.QuickFix);
