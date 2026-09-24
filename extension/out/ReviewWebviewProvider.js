@@ -272,7 +272,7 @@ class ReviewWebviewProvider {
             const backendUrl = config.get('backendUrl', 'http://localhost:5000');
             let response;
             if (sessionId) {
-                response = await fetch(`${backendUrl}/api/v1/reviews/${sessionId}/export-docx`);
+                response = await (fetch(`${backendUrl}/api/v1/reviews/${sessionId}/export-docx`, { method: 'GET' }));
             }
             else {
                 response = await fetch(`${backendUrl}/api/v1/reviews/export-docx`, {
@@ -798,27 +798,6 @@ class ReviewWebviewProvider {
         });
       }
 
-      // 1.5 Missing Test Cases & Edge Cases
-      if (res.missingTests && res.missingTests.length > 0) {
-        html += '<div class="section-title">';
-        html += '<span>🧪 Missing Test Cases & Edge Cases (' + res.missingTests.length + ')</span>';
-        html += '</div>';
-        
-        res.missingTests.forEach((mt) => {
-          let typeIcon = '📝';
-          if (mt.scenario_type === 'edge_case') typeIcon = '⚠️';
-          else if (mt.scenario_type === 'negative_path') typeIcon = '⛔';
-          else if (mt.scenario_type === 'regression') typeIcon = '🔄';
-
-          html += '<div class="finding-card" style="border-left-color: #3b82f6;">';
-          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
-          html += '<span class="badge" style="background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid #3b82f6; font-size: 9px;">' + escapeHtml((mt.scenario_type || 'TEST').toUpperCase().replace('_', ' ')) + '</span>';
-          html += '</div>';
-          html += '<div style="font-weight: 600; font-size: 11px;">' + typeIcon + ' ' + escapeHtml(mt.description) + '</div>';
-          html += '</div>';
-        });
-      }
-
       // 2. Acceptance Criteria Verification
       if (res.acceptanceCriteriaResults && res.acceptanceCriteriaResults.length > 0) {
         html += '<div class="section-title">';
@@ -881,7 +860,9 @@ class ReviewWebviewProvider {
 
           // Location
           html += '<div style="font-size: 11px; margin-bottom: 4px;">';
-          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', 0)">📄 ' + escapeHtml(mt.target_file) + '</span>';
+          const lineNum = mt.target_line || mt.line_number || 0;
+          const displayFile = escapeHtml(mt.target_file) + (lineNum ? ':' + lineNum : '');
+          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', ' + lineNum + ')">📄 ' + displayFile + '</span>';
           if (mt.target_method) {
              html += ' <span style="opacity: 0.7;">(Method: <code>' + escapeHtml(mt.target_method) + '</code>)</span>';
           }
@@ -901,9 +882,43 @@ class ReviewWebviewProvider {
           if (mt.suggested_test_code) {
              html += '<button class="btn-sm btn-secondary" onclick="copyTestCode(' + idx + ')">📋 Copy Test Code</button>';
           }
-          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', 0)">📄 Open File</button>';
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', ' + lineNum + ')">📄 Open File</button>';
           html += '</div>';
 
+          html += '</div>';
+        });
+      }
+
+      // 5. Reusable Components
+      if (res.reusableComponents && res.reusableComponents.length > 0) {
+        html += '<div class="section-title">';
+        html += '<span>♻️ Reusable Components Detected (' + res.reusableComponents.length + ')</span>';
+        html += '</div>';
+
+        res.reusableComponents.forEach((rc, idx) => {
+          html += '<div class="finding-card" style="border-left-color: var(--primary-color);">';
+          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
+          html += '<span class="badge badge-info">' + escapeHtml(rc.component_type || 'COMPONENT') + '</span>';
+          html += '</div>';
+          html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 2px;">' + escapeHtml(rc.name) + '</div>';
+          html += '<div style="font-size: 11px; margin-bottom: 4px; opacity: 0.9;">' + escapeHtml(rc.description) + '</div>';
+          if (rc.file_path) {
+            html += '<div style="font-size: 10px; margin-bottom: 4px;">';
+            html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(rc.file_path) + '\\', 0)">📄 ' + escapeHtml(rc.file_path) + '</span>';
+            html += '</div>';
+          }
+          if (rc.snippet) {
+             html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">💻 Code Snippet:</div>';
+             html += '<pre class="code-box"><code>' + escapeHtml(rc.snippet) + '</code></pre>';
+          }
+          html += '<div class="btn-row">';
+          if (rc.snippet) {
+             html += '<button class="btn-sm btn-secondary" onclick="copyReusableCode(' + idx + ')">📋 Copy Snippet</button>';
+          }
+          html += '</div>';
+          html += '</div>';
+        });
+      }
       // Duplicate Code Section
       if (res.duplicates && res.duplicates.length > 0) {
         html += '<div class="section-title">';
@@ -970,6 +985,19 @@ class ReviewWebviewProvider {
           message: 'Copied test code to clipboard!'
         });
       }
+    }
+
+    function copyReusableCode(idx) {
+      if (window.currentResult && window.currentResult.reusableComponents && window.currentResult.reusableComponents[idx]) {
+        const rc = window.currentResult.reusableComponents[idx];
+        vscode.postMessage({
+          type: 'copyToClipboard',
+          text: rc.snippet,
+          message: 'Copied reusable snippet to clipboard!'
+        });
+      }
+    }
+
     function exportDocx(sessionId) {
       vscode.postMessage({
         type: 'exportDocx',
