@@ -203,7 +203,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     const backendUrl = config.get<string>('backendUrl', 'http://localhost:5000');
 
     try {
-      const response = await fetch(`${backendUrl}/api/v1/reviews`, {
+      const response = await (fetch(`${backendUrl}/api/v1/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +213,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           branch: branch,
           repository_name: vscode.workspace.name || 'local-repo'
         })
-      });
+      }) as unknown as Promise<{ ok: boolean; status: number; json(): Promise<any> }>);
 
       if (!response.ok) {
         throw new Error(`Server returned HTTP ${response.status}`);
@@ -557,6 +557,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       html += '<span class="stats-chip">🚫 Blockers: <strong>' + (res.blockingIssues || 0) + '</strong></span>';
       html += '<span class="stats-chip">⚠️ Warnings: <strong>' + (res.warningIssues || 0) + '</strong></span>';
       html += '<span class="stats-chip">🛡️ Checks Passed: <strong>' + (res.passedChecksCount || (res.passedChecks ? res.passedChecks.length : 0)) + '</strong></span>';
+      html += '<span class="stats-chip">🧪 Missing Tests: <strong>' + (res.missingTestsCount || (res.missingTests ? res.missingTests.length : 0)) + '</strong></span>';
       html += '</div></div>';
 
       // 1. Grounded Findings & Fix Suggestions
@@ -654,6 +655,90 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         html += '</details>';
       }
 
+      // 4. Missing Unit Tests & Edge Cases
+      if (res.missingTests && res.missingTests.length > 0) {
+        html += '<div class="section-title">';
+        html += '<span>🧪 Missing Unit Tests & Edge Cases (' + res.missingTests.length + ')</span>';
+        html += '</div>';
+
+        res.missingTests.forEach((mt, idx) => {
+          let typeBadge = 'badge-info';
+          let displayType = (mt.scenario_type || 'EDGE CASE').toUpperCase().replace('_', ' ');
+          if (displayType.includes('HAPPY')) typeBadge = 'badge-ready';
+          else if (displayType.includes('NEGATIVE')) typeBadge = 'badge-warning';
+          else if (displayType.includes('REGRESSION')) typeBadge = 'badge-danger';
+
+          html += '<div class="finding-card">';
+          
+          // Header
+          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
+          html += '<span class="badge ' + typeBadge + '">' + displayType + '</span>';
+          if (mt.priority) {
+             let prioBadge = mt.priority === 'HIGH' ? 'badge-danger' : 'badge-warning';
+             html += '<span class="badge ' + prioBadge + '" style="font-size: 9px;">Priority: ' + escapeHtml(mt.priority) + '</span>';
+          }
+          html += '</div>';
+
+          // Location
+          html += '<div style="font-size: 11px; margin-bottom: 4px;">';
+          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', 0)">📄 ' + escapeHtml(mt.target_file) + '</span>';
+          if (mt.target_method) {
+             html += ' <span style="opacity: 0.7;">(Method: <code>' + escapeHtml(mt.target_method) + '</code>)</span>';
+          }
+          html += '</div>';
+
+          // Description
+          html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 6px;">' + escapeHtml(mt.description) + '</div>';
+
+          // Suggested Test Code
+          if (mt.suggested_test_code) {
+             html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">🔧 Suggested Test Code:</div>';
+             html += '<pre class="code-box"><code>' + escapeHtml(mt.suggested_test_code) + '</code></pre>';
+          }
+
+          // Action Buttons
+          html += '<div class="btn-row">';
+          if (mt.suggested_test_code) {
+             html += '<button class="btn-sm btn-secondary" onclick="copyTestCode(' + idx + ')">📋 Copy Test Code</button>';
+          }
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(mt.target_file) + '\\', 0)">📄 Open File</button>';
+          html += '</div>';
+
+          html += '</div>';
+        });
+      }
+
+      // 5. Reusable Components
+      if (res.reusableComponents && res.reusableComponents.length > 0) {
+        html += '<div class="section-title">';
+        html += '<span>♻️ Reusable Components Detected (' + res.reusableComponents.length + ')</span>';
+        html += '</div>';
+
+        res.reusableComponents.forEach((rc, idx) => {
+          html += '<div class="finding-card" style="border-left-color: var(--primary-color);">';
+          html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
+          html += '<span class="badge badge-info">' + escapeHtml(rc.component_type || 'COMPONENT') + '</span>';
+          html += '</div>';
+          html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 2px;">' + escapeHtml(rc.name) + '</div>';
+          html += '<div style="font-size: 11px; margin-bottom: 4px; opacity: 0.9;">' + escapeHtml(rc.description) + '</div>';
+          if (rc.file_path) {
+            html += '<div style="font-size: 10px; margin-bottom: 4px;">';
+            html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(rc.file_path) + '\\', 0)">📄 ' + escapeHtml(rc.file_path) + '</span>';
+            html += '</div>';
+          }
+          if (rc.snippet) {
+             html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">💻 Code Snippet:</div>';
+             html += '<pre class="code-box"><code>' + escapeHtml(rc.snippet) + '</code></pre>';
+          }
+          html += '<div class="btn-row">';
+          if (rc.snippet) {
+             html += '<button class="btn-sm btn-secondary" onclick="copyReusableCode(' + idx + ')">📋 Copy Snippet</button>';
+          }
+          html += '</div>';
+          html += '</div>';
+        });
+      }
+
       window.currentResult = res;
       resultContainer.innerHTML = html;
     }
@@ -685,8 +770,34 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         });
       }
     }
+
+    function copyTestCode(idx) {
+      if (window.currentResult && window.currentResult.missingTests && window.currentResult.missingTests[idx]) {
+        const test = window.currentResult.missingTests[idx];
+        vscode.postMessage({
+          type: 'copyToClipboard',
+          text: test.suggested_test_code,
+          message: 'Copied test code to clipboard!'
+        });
+      }
+    }
+
+    function copyReusableCode(idx) {
+      if (window.currentResult && window.currentResult.reusableComponents && window.currentResult.reusableComponents[idx]) {
+        const rc = window.currentResult.reusableComponents[idx];
+        vscode.postMessage({
+          type: 'copyToClipboard',
+          text: rc.snippet,
+          message: 'Copied reusable snippet to clipboard!'
+        });
+      }
+    }
   </script>
 </body>
 </html>`;
   }
 }
+function fetch(arg0: string, arg1: { method: string; headers: { 'Content-Type': string; }; body: string; }) {
+  throw new Error('Function not implemented.');
+}
+

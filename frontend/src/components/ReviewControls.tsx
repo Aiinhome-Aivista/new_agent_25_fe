@@ -121,6 +121,50 @@ new file mode 100644
 +`,
     language: 'python',
     framework: 'flask'
+  },
+  {
+    id: 'ts-auth',
+    name: '7. TypeScript Auth',
+    tag: 'TypeScript',
+    criteria: '1. Validate token presence.\n2. Decode JWT and return user ID.',
+    diff: `diff --git a/src/middleware/auth.ts b/src/middleware/auth.ts
+new file mode 100644
+--- /dev/null
++++ b/src/middleware/auth.ts
+@@ -0,0 +1,9 @@
++import { verify } from 'jsonwebtoken';
++
++export const checkAuth = (req, res, next) => {
++  const token = req.headers.authorization;
++  if (!token) return res.status(401).send();
++  const decoded = verify(token.split(' ')[1], process.env.JWT_SECRET);
++  req.userId = (decoded as any).id;
++  next();
++}`,
+    language: 'typescript',
+    framework: 'general'
+  },
+  {
+    id: 'go-worker',
+    name: '8. Go Worker',
+    tag: 'Go',
+    criteria: '1. Read jobs from channel.\n2. Process job and log completion.',
+    diff: `diff --git a/worker.go b/worker.go
+new file mode 100644
+--- /dev/null
++++ b/worker.go
+@@ -0,0 +1,10 @@
++package main
++import "log"
++
++func worker(id int, jobs <-chan int, results chan<- int) {
++    for j := range jobs {
++        log.Printf("worker %d processing job %d", id, j)
++        results <- j * 2
++    }
++}`,
+    language: 'go',
+    framework: 'general'
   }
 ];
 
