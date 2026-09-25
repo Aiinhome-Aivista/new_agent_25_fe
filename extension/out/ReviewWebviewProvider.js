@@ -727,6 +727,7 @@ class ReviewWebviewProvider {
       if (res.missingTestsCount !== undefined || (res.missingTests && res.missingTests.length > 0)) {
          html += '<span class="stats-chip">🧪 Missing Tests: <strong>' + (res.missingTestsCount || (res.missingTests ? res.missingTests.length : 0)) + '</strong></span>';
       }
+      html += '<span class="stats-chip">🔁 Code Duplication: <strong>' + (res.duplicates ? res.duplicates.length : 0) + '</strong></span>';
       html += '</div></div>';
 
       // 1. Grounded Findings & Fix Suggestions
