@@ -193,27 +193,23 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           // Preserve original leading whitespace/indentation
           const leadingIndentMatch = targetLine.text.match(/^(\s*)/);
           const leadingIndent = leadingIndentMatch ? leadingIndentMatch[1] : '';
-          let finalReplacement = '';
-          if (targetLine.text.includes('0.0.0.0') && (cleanFix.includes('127.0.0.1') || cleanFix.includes('host=')) && !cleanFix.includes('uvicorn.run') && !cleanFix.includes('app.run')) {
-            finalReplacement = targetLine.text.replace(/['"]0\.0\.0\.0['"]/, '"127.0.0.1"');
-          } else {
-            const fixLines = cleanFix.split(/\r?\n/);
-            let minIndent = Infinity;
-            for (const l of fixLines) {
-              if (l.trim().length > 0) {
-                const match = l.match(/^(\s*)/);
-                const indentLen = match ? match[1].length : 0;
-                if (indentLen < minIndent) minIndent = indentLen;
-              }
+          
+          const fixLines = cleanFix.split(/\r?\n/);
+          let minIndent = Infinity;
+          for (const l of fixLines) {
+            if (l.trim().length > 0) {
+              const match = l.match(/^(\s*)/);
+              const indentLen = match ? match[1].length : 0;
+              if (indentLen < minIndent) minIndent = indentLen;
             }
-            if (minIndent === Infinity) minIndent = 0;
-
-            const indentedFixLines = fixLines.map(l => {
-              if (l.trim().length === 0) return leadingIndent;
-              return leadingIndent + l.substring(Math.min(l.length, minIndent));
-            });
-            finalReplacement = indentedFixLines.join('\n');
           }
+          if (minIndent === Infinity) minIndent = 0;
+
+          const indentedFixLines = fixLines.map(l => {
+            if (l.trim().length === 0) return leadingIndent;
+            return leadingIndent + l.substring(Math.min(l.length, minIndent));
+          });
+          const finalReplacement = indentedFixLines.join('\n');
           edit.replace(uri, replaceRangeWithoutBreak, finalReplacement);
         }
       } else if (cleanFix !== '') {
@@ -827,12 +823,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
     function isLikelyCode(text) {
       if (text === '') return true;
-      if (!text || typeof text !== 'string') return false;
-      const t = text.trim();
-      // If it looks like an English sentence explaining what to do
-      if (/^(ensure|make sure|you should|please|change the|it is recommended|import .* at the top|before the line)/i.test(t)) {
-        return false;
-      }
+      if (text === undefined || text === null) return false;
       return true;
     }
 
@@ -904,8 +895,8 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           }
 
           // Suggested Fix Code
-          const hasValidCode = (issue.fix_code !== undefined && issue.fix_code !== null) && isLikelyCode(issue.fix_code);
-          if (hasValidCode) {
+          const hasFixCode = (issue.fix_code !== undefined && issue.fix_code !== null);
+          if (hasFixCode) {
             html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">🔧 Suggested Fix Code:</div>';
             if (issue.fix_code === '') {
               html += '<pre class="code-box" style="color: #f87171;"><code>[Delete / Remove this line]</code></pre>';
@@ -916,11 +907,11 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
           // Action Buttons
           html += '<div class="btn-row">';
-          if (hasValidCode) {
-            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')"> Apply Fix</button>';
-            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')"> Copy Fix</button>';
+          if (hasFixCode) {
+            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')">⚡ Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')">📋 Copy Fix</button>';
           }
-          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')"> Open File</button>';
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')">📂 Open File</button>';
           html += '</div>';
 
           html += '</div>';
