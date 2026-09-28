@@ -37,7 +37,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           break;
         }
         case 'applyFix': {
-          await this.applyFixToCode(data.file, data.line, data.fixCode, data.issueIndex);
+          await this.applyFixToCode(data.file, data.line, data.fixCode, data.issueIndex, data.endLine, data.evidence);
           break;
         }
         case 'copyToClipboard': {
@@ -66,9 +66,29 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
     try {
       const rootPath = workspaceFolders[0].uri.fsPath;
-      const normalizedPath = filePath.replace(/\\/g, '/');
-      const uri = vscode.Uri.file(`${rootPath}/${normalizedPath}`.replace(/\/+/g, '/'));
-      const doc = await vscode.workspace.openTextDocument(uri);
+      let cleanPath = filePath.replace(/\\/g, '/');
+      if (cleanPath.startsWith('a/') || cleanPath.startsWith('b/')) {
+        cleanPath = cleanPath.substring(2);
+      }
+      let uri = vscode.Uri.file(`${rootPath}/${cleanPath}`.replace(/\/+/g, '/'));
+      let doc: vscode.TextDocument;
+      try {
+        doc = await vscode.workspace.openTextDocument(uri);
+      } catch {
+        const simpleName = cleanPath.split('/').pop() || cleanPath;
+        const files = await vscode.workspace.findFiles(`**/${simpleName}`, null, 5);
+        const matched = files.find(f => f.fsPath.replace(/\\/g, '/').endsWith(cleanPath));
+        if (matched) {
+          uri = matched;
+          doc = await vscode.workspace.openTextDocument(uri);
+        } else if (files.length > 0) {
+          uri = files[0];
+          doc = await vscode.workspace.openTextDocument(uri);
+        } else {
+          throw new Error(`File not found: ${filePath}`);
+        }
+      }
+
       const editor = await vscode.window.showTextDocument(doc);
       if (line > 0) {
         const lineIdx = Math.max(0, line - 1);
@@ -81,7 +101,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public async applyFixToCode(filePath: string, line: number, fixCode: string, issueIndex?: number) {
+  public async applyFixToCode(filePath: string, line: number, fixCode: string, issueIndex?: number, endLine?: number, evidence?: string) {
     if (fixCode === undefined || fixCode === null) {
       vscode.window.showWarningMessage('No valid fix code available to apply.');
       return;
@@ -92,20 +112,46 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
     try {
       const rootPath = workspaceFolders[0].uri.fsPath;
-      const normalizedPath = filePath.replace(/\\/g, '/');
-      const uri = vscode.Uri.file(`${rootPath}/${normalizedPath}`.replace(/\/+/g, '/'));
-      const doc = await vscode.workspace.openTextDocument(uri);
+      let cleanPath = filePath.replace(/\\/g, '/');
+      if (cleanPath.startsWith('a/') || cleanPath.startsWith('b/')) {
+        cleanPath = cleanPath.substring(2);
+      }
+      let uri = vscode.Uri.file(`${rootPath}/${cleanPath}`.replace(/\/+/g, '/'));
+      let doc: vscode.TextDocument;
+      try {
+        doc = await vscode.workspace.openTextDocument(uri);
+      } catch {
+        const simpleName = cleanPath.split('/').pop() || cleanPath;
+        const files = await vscode.workspace.findFiles(`**/${simpleName}`, null, 5);
+        const matched = files.find(f => f.fsPath.replace(/\\/g, '/').endsWith(cleanPath));
+        if (matched) {
+          uri = matched;
+          doc = await vscode.workspace.openTextDocument(uri);
+        } else if (files.length > 0) {
+          uri = files[0];
+          doc = await vscode.workspace.openTextDocument(uri);
+        } else {
+          throw new Error(`File not found: ${filePath}`);
+        }
+      }
+
       const editor = await vscode.window.showTextDocument(doc);
 
       // Clean markdown fences from fixCode
       let cleanFix = fixCode.replace(/^```[a-zA-Z]*\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
 
       const edit = new vscode.WorkspaceEdit();
-      const lineIdx = Math.max(0, (line || 1) - 1);
+      let targetLineIdx = Math.max(0, (line || 1) - 1);
+      let endLineIdx = targetLineIdx;
 
-      if (lineIdx < doc.lineCount) {
-        let replaceRange: vscode.Range = doc.lineAt(lineIdx).rangeIncludingLineBreak;
-        let replaceRangeWithoutBreak: vscode.Range = doc.lineAt(lineIdx).range;
+      if (endLine && endLine > 0) {
+        endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, endLine - 1));
+      } else if (issueIndex !== undefined && issueIndex >= 0 && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
+        const issue = this._latestReviewData.issues[issueIndex];
+        if (issue.end_line || issue.endLine) {
+          endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.endLine || 1) - 1));
+        }
+      }
 
         // If end_line exists for this issue, we delete the entire block
         if (issueIndex !== undefined && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
@@ -121,8 +167,21 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
             }
           }
         }
+      }
 
-        const targetLine = doc.lineAt(lineIdx);
+      if (targetLineIdx < doc.lineCount) {
+        let replaceRange: vscode.Range;
+        let replaceRangeWithoutBreak: vscode.Range;
+
+        if (endLineIdx > targetLineIdx) {
+          replaceRange = new vscode.Range(targetLineIdx, 0, Math.min(doc.lineCount, endLineIdx + 1), 0);
+          replaceRangeWithoutBreak = new vscode.Range(targetLineIdx, 0, endLineIdx, doc.lineAt(endLineIdx).text.length);
+        } else {
+          replaceRange = doc.lineAt(targetLineIdx).rangeIncludingLineBreak;
+          replaceRangeWithoutBreak = doc.lineAt(targetLineIdx).range;
+        }
+
+        const targetLine = doc.lineAt(targetLineIdx);
         if (cleanFix === '') {
           // Deleting line(s)
           edit.delete(uri, replaceRange);
@@ -130,27 +189,23 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           // Preserve original leading whitespace/indentation
           const leadingIndentMatch = targetLine.text.match(/^(\s*)/);
           const leadingIndent = leadingIndentMatch ? leadingIndentMatch[1] : '';
-          let finalReplacement = '';
-          if (targetLine.text.includes('0.0.0.0') && (cleanFix.includes('127.0.0.1') || cleanFix.includes('host=')) && !cleanFix.includes('uvicorn.run') && !cleanFix.includes('app.run')) {
-            finalReplacement = targetLine.text.replace(/['"]0\.0\.0\.0['"]/, '"127.0.0.1"');
-          } else {
-            const fixLines = cleanFix.split(/\r?\n/);
-            let minIndent = Infinity;
-            for (const line of fixLines) {
-              if (line.trim().length > 0) {
-                const match = line.match(/^(\s*)/);
-                const indentLen = match ? match[1].length : 0;
-                if (indentLen < minIndent) minIndent = indentLen;
-              }
+          
+          const fixLines = cleanFix.split(/\r?\n/);
+          let minIndent = Infinity;
+          for (const l of fixLines) {
+            if (l.trim().length > 0) {
+              const match = l.match(/^(\s*)/);
+              const indentLen = match ? match[1].length : 0;
+              if (indentLen < minIndent) minIndent = indentLen;
             }
-            if (minIndent === Infinity) minIndent = 0;
-
-            const indentedFixLines = fixLines.map(l => {
-              if (l.trim().length === 0) return leadingIndent;
-              return leadingIndent + l.substring(minIndent);
-            });
-            finalReplacement = indentedFixLines.join('\n');
           }
+          if (minIndent === Infinity) minIndent = 0;
+
+          const indentedFixLines = fixLines.map(l => {
+            if (l.trim().length === 0) return leadingIndent;
+            return leadingIndent + l.substring(Math.min(l.length, minIndent));
+          });
+          const finalReplacement = indentedFixLines.join('\n');
           edit.replace(uri, replaceRangeWithoutBreak, finalReplacement);
         }
       } else if (cleanFix !== '') {
@@ -161,10 +216,10 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       const success = await vscode.workspace.applyEdit(edit);
       if (success) {
         await doc.save();
-        const pos = new vscode.Position(lineIdx, 0);
+        const pos = new vscode.Position(targetLineIdx, 0);
         editor.selection = new vscode.Selection(pos, pos);
         editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-        vscode.window.showInformationMessage(`✅ Fix applied successfully to ${filePath}:${line || 1}!`);
+        vscode.window.showInformationMessage(`✅ Fix applied successfully to ${filePath}:${(targetLineIdx + 1)}!`);
         if (this._view && issueIndex !== undefined) {
           this._view.webview.postMessage({ type: 'fixApplied', issueIndex });
         }
@@ -392,6 +447,18 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
     #runBtn:hover {
       background: var(--hover-orange);
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loader-spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255, 90, 20, 0.25);
+      border-top: 3px solid #FF5A14;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
     }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
@@ -672,7 +739,13 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       runBtn.disabled = true;
       runBtn.style.opacity = '0.5';
       runBtn.style.cursor = 'not-allowed';
+      window.currentResult = null;
       statusDiv.innerHTML = '⚡ <span>Extracting Git diff & orchestrating review agents...</span>';
+      resultContainer.innerHTML = '<div class="card" style="text-align: center; padding: 28px 16px; margin-top: 12px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px;">' +
+        '<div class="loader-spinner" style="margin: 0 auto 12px auto;"></div>' +
+        '<div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Running Multi-Agent Code Review...</div>' +
+        '<div style="font-size: 11px; opacity: 0.75; line-height: 1.5;">Scanning AST & syntax integrity, security SAST rules, acceptance criteria, and code reusability.</div>' +
+        '</div>';
       vscode.postMessage({
         type: 'triggerReview',
         acceptanceCriteria: acInput.value,
@@ -694,7 +767,14 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         runBtn.disabled = false;
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
-        statusDiv.innerText = '❌ Error: ' + message.message;
+        statusDiv.innerText = '';
+        resultContainer.innerHTML = '<div class="card" style="border-left: 4px solid #ef4444; margin-top: 12px;">' +
+          '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">' +
+          '<span style="font-size: 16px;">❌</span>' +
+          '<strong style="color: #ef4444; font-size: 13px;">Review Execution Failed</strong>' +
+          '</div>' +
+          '<div style="font-size: 11px; opacity: 0.9; line-height: 1.4;">' + escapeHtml(message.message || 'An error occurred while running the review.') + '</div>' +
+          '</div>';
       } else if (message.type === 'indexComplete') {
         // Index সম্পূর্ণ হলে status badge update
         const indexStatusText = document.getElementById('indexStatusText');
@@ -739,12 +819,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
     function isLikelyCode(text) {
       if (text === '') return true;
-      if (!text || typeof text !== 'string') return false;
-      const t = text.trim();
-      // If it looks like an English sentence explaining what to do
-      if (/^(ensure|make sure|you should|please|change the|it is recommended|import .* at the top|before the line)/i.test(t)) {
-        return false;
-      }
+      if (text === undefined || text === null) return false;
       return true;
     }
 
@@ -816,8 +891,8 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           }
 
           // Suggested Fix Code
-          const hasValidCode = (issue.fix_code !== undefined && issue.fix_code !== null) && isLikelyCode(issue.fix_code);
-          if (hasValidCode) {
+          const hasFixCode = (issue.fix_code !== undefined && issue.fix_code !== null);
+          if (hasFixCode) {
             html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">🔧 Suggested Fix Code:</div>';
             if (issue.fix_code === '') {
               html += '<pre class="code-box" style="color: #f87171;"><code>[Delete / Remove this line]</code></pre>';
@@ -828,11 +903,11 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
           // Action Buttons
           html += '<div class="btn-row">';
-          if (hasValidCode) {
-            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')"> Apply Fix</button>';
-            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')"> Copy Fix</button>';
+          if (hasFixCode) {
+            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')">⚡ Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')">📋 Copy Fix</button>';
           }
-          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')"> Open File</button>';
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')">📂 Open File</button>';
           html += '</div>';
 
           html += '</div>';
@@ -965,22 +1040,33 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         html += '<div class="section-title">';
         html += '<span>🔁 Duplicate Code Detected (' + res.duplicates.length + ')</span>';
         html += '</div>';
-        res.duplicates.forEach((dup) => {
+        res.duplicates.forEach((dup, dIdx) => {
           html += '<div class="finding-card severity-WARNING" style="border-left-color: #a78bfa;">';
           html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
           html += '<span class="badge" style="background: rgba(167,139,250,0.2); color: #c4b5fd; border: 1px solid #7c3aed;">DUPLICATE</span>';
           html += '<span style="font-size: 10px; opacity: 0.8;">Code Duplication</span>';
           html += '</div>';
           html += '<div style="font-size: 11px; margin-bottom: 4px;">';
-          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(dup.file) + '\\', ' + (dup.line || 0) + ')">📄 ' + escapeHtml(dup.file) + (dup.line ? ':' + dup.line : '') + '</span>';
+          const lineStr = dup.end_line && dup.end_line > dup.line ? (dup.line + '-' + dup.end_line) : (dup.line || 0);
+          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(dup.file) + '\\', ' + (dup.line || 0) + ')">📄 ' + escapeHtml(dup.file) + ':' + lineStr + '</span>';
           html += '</div>';
           html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 4px;">' + escapeHtml(dup.message) + '</div>';
           if (dup.suggestion) {
             html += '<div class="suggestion-box"><strong>💡 Fix:</strong> ' + escapeHtml(dup.suggestion) + '</div>';
           }
-          if (dup.duplicate_in_file) {
-            html += '<div class="btn-row"><button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(dup.duplicate_in_file) + '\\', ' + (dup.duplicate_at_line || 0) + ')">📂 Go to Original</button></div>';
+          if (dup.fix_code) {
+            html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">🔧 Suggested Fix Code:</div>';
+            html += '<pre class="code-box"><code>' + escapeHtml(dup.fix_code) + '</code></pre>';
           }
+          html += '<div class="btn-row">';
+          if (dup.fix_code) {
+            html += '<button class="btn-sm btn-success" onclick="applyDuplicateFix(' + dIdx + ')">⚡ Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyDuplicateFix(' + dIdx + ')">📋 Copy Fix</button>';
+          }
+          if (dup.duplicate_in_file) {
+            html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(dup.duplicate_in_file) + '\\', ' + (dup.duplicate_at_line || 0) + ')">📂 Go to Original</button>';
+          }
+          html += '</div>';
           html += '</div>';
         });
       }
@@ -1000,8 +1086,36 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
           type: 'applyFix',
           file: file,
           line: line,
+          endLine: issue.end_line || issue.endLine || 0,
+          evidence: issue.evidence || '',
           fixCode: issue.fix_code,
           issueIndex: issueIndex
+        });
+      }
+    }
+
+    function applyDuplicateFix(dIdx) {
+      if (window.currentResult && window.currentResult.duplicates && window.currentResult.duplicates[dIdx]) {
+        const dup = window.currentResult.duplicates[dIdx];
+        vscode.postMessage({
+          type: 'applyFix',
+          file: dup.file,
+          line: dup.line || 1,
+          endLine: dup.end_line || dup.endLine || dup.line || 1,
+          evidence: dup.evidence || '',
+          fixCode: dup.fix_code,
+          issueIndex: -1
+        });
+      }
+    }
+
+    function copyDuplicateFix(dIdx) {
+      if (window.currentResult && window.currentResult.duplicates && window.currentResult.duplicates[dIdx]) {
+        const dup = window.currentResult.duplicates[dIdx];
+        vscode.postMessage({
+          type: 'copyToClipboard',
+          text: dup.fix_code,
+          message: 'Copied fix code to clipboard!'
         });
       }
     }
@@ -1068,9 +1182,5 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   </script>
 </body>
 </html>`;
-  }
-}
-</body>
-  </html>`;
   }
 }

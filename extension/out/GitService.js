@@ -20,17 +20,19 @@ class GitService {
                 if (stdout && stdout.trim()) {
                     diff = stdout;
                 }
-            } catch {}
-            // 2. Try git diff
+            }
+            catch { }
+            // 2. Fallback to git diff
             if (!diff.trim()) {
                 try {
                     const { stdout: diffStdout } = await execAsync('git diff', { cwd, timeout: 5000 });
                     if (diffStdout && diffStdout.trim()) {
                         diff = diffStdout;
                     }
-                } catch {}
+                }
+                catch { }
             }
-            // 3. Include untracked new files
+            // 3. Include untracked new files (e.g. newly created classes)
             try {
                 const { stdout: untrackedFiles } = await execAsync('git ls-files --others --exclude-standard', { cwd, timeout: 5000 });
                 if (untrackedFiles && untrackedFiles.trim()) {
@@ -43,7 +45,8 @@ class GitService {
                                 if (fileDiff && fileDiff.trim()) {
                                     diff += (diff ? '\n' : '') + fileDiff;
                                 }
-                            } catch (e) {
+                            }
+                            catch (e) {
                                 if (e.stdout && e.stdout.trim()) {
                                     diff += (diff ? '\n' : '') + e.stdout;
                                 }
@@ -51,7 +54,8 @@ class GitService {
                         }
                     }
                 }
-            } catch {}
+            }
+            catch { }
             return diff.trim();
         }
         catch (err) {
