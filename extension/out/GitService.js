@@ -13,17 +13,46 @@ class GitService {
         }
         const cwd = workspaceFolders[0].uri.fsPath;
         try {
+            let diff = '';
             // 1. Try git diff HEAD (staged + unstaged)
-            const { stdout } = await execAsync('git diff HEAD', { cwd, timeout: 5000 });
-            if (stdout && stdout.trim()) {
-                return stdout;
-            }
+            try {
+                const { stdout } = await execAsync('git diff HEAD', { cwd, timeout: 5000 });
+                if (stdout && stdout.trim()) {
+                    diff = stdout;
+                }
+            } catch {}
             // 2. Try git diff
-            const { stdout: diffStdout } = await execAsync('git diff', { cwd, timeout: 5000 });
-            if (diffStdout && diffStdout.trim()) {
-                return diffStdout;
+            if (!diff.trim()) {
+                try {
+                    const { stdout: diffStdout } = await execAsync('git diff', { cwd, timeout: 5000 });
+                    if (diffStdout && diffStdout.trim()) {
+                        diff = diffStdout;
+                    }
+                } catch {}
             }
-            return '';
+            // 3. Include untracked new files
+            try {
+                const { stdout: untrackedFiles } = await execAsync('git ls-files --others --exclude-standard', { cwd, timeout: 5000 });
+                if (untrackedFiles && untrackedFiles.trim()) {
+                    const files = untrackedFiles.trim().split(/\r?\n/);
+                    for (const file of files) {
+                        const trimmed = file.trim();
+                        if (trimmed) {
+                            try {
+                                const { stdout: fileDiff } = await execAsync(`git diff --no-index -- /dev/null "${trimmed}"`, { cwd, timeout: 5000 });
+                                if (fileDiff && fileDiff.trim()) {
+                                    diff += (diff ? '\n' : '') + fileDiff;
+                                }
+                            } catch (e) {
+                                if (e.stdout && e.stdout.trim()) {
+                                    diff += (diff ? '\n' : '') + e.stdout;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch {}
+            return diff.trim();
         }
         catch (err) {
             console.warn('Could not extract git diff automatically:', err);

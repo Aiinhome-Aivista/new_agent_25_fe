@@ -388,6 +388,18 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     #runBtn:hover {
       background: var(--hover-orange);
     }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loader-spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(230,107,34,0.25);
+      border-top: 3px solid #e66b22;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
       background: rgba(var(--button-orange-rgb), 0.2); /* 20% opacity dynamic */
@@ -526,12 +538,15 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       background: var(--vscode-textCodeBlock-background, #1e1e1e);
       border: 1px solid var(--border-color);
       border-radius: 4px;
-      padding: 6px 8px;
+      padding: 8px 10px;
       margin-top: 6px;
-      font-family: var(--vscode-editor-font-family, monospace);
+      font-family: var(--vscode-editor-font-family, 'JetBrains Mono', Consolas, monospace);
       font-size: 11px;
+      line-height: 1.45;
       white-space: pre-wrap;
-      word-break: break-all;
+      word-break: normal;
+      overflow-wrap: break-word;
+      tab-size: 4;
       color: var(--vscode-editor-foreground, #d4d4d4);
       overflow-x: auto;
     }
@@ -667,7 +682,16 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       runBtn.disabled = true;
       runBtn.style.opacity = '0.5';
       runBtn.style.cursor = 'not-allowed';
+      
+      // Reset previous state and clear old cards immediately
+      window.currentResult = null;
       statusDiv.innerHTML = '⚡ <span>Extracting Git diff & orchestrating review agents...</span>';
+      resultContainer.innerHTML = '<div class="card" style="text-align: center; padding: 28px 16px; margin-top: 12px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px;">' +
+        '<div class="loader-spinner" style="margin: 0 auto 12px auto;"></div>' +
+        '<div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Running Multi-Agent Code Review...</div>' +
+        '<div style="font-size: 11px; opacity: 0.75; line-height: 1.5;">Scanning AST & syntax integrity, security SAST rules, acceptance criteria, and code reusability.</div>' +
+        '</div>';
+
       vscode.postMessage({
         type: 'triggerReview',
         acceptanceCriteria: acInput.value,
@@ -689,7 +713,14 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         runBtn.disabled = false;
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
-        statusDiv.innerText = '❌ Error: ' + message.message;
+        statusDiv.innerText = '';
+        resultContainer.innerHTML = '<div class="card" style="border-left: 4px solid #ef4444; margin-top: 12px;">' +
+          '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">' +
+          '<span style="font-size: 16px;">❌</span>' +
+          '<strong style="color: #ef4444; font-size: 13px;">Review Execution Failed</strong>' +
+          '</div>' +
+          '<div style="font-size: 11px; opacity: 0.9; line-height: 1.4;">' + escapeHtml(message.message || 'An error occurred while running the review.') + '</div>' +
+          '</div>';
       } else if (message.type === 'indexComplete') {
         // Index সম্পূর্ণ হলে status badge update
         const indexStatusText = document.getElementById('indexStatusText');
