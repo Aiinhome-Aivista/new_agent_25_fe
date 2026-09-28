@@ -26,7 +26,7 @@ class ReviewWebviewProvider {
                     break;
                 }
                 case 'applyFix': {
-                    await this.applyFixToCode(data.file, data.line, data.fixCode, data.issueIndex);
+                    await this.applyFixToCode(data.file, data.line, data.fixCode, data.issueIndex, data.endLine, data.evidence);
                     break;
                 }
                 case 'copyToClipboard': {
@@ -54,9 +54,31 @@ class ReviewWebviewProvider {
             return;
         try {
             const rootPath = workspaceFolders[0].uri.fsPath;
-            const normalizedPath = filePath.replace(/\\/g, '/');
-            const uri = vscode.Uri.file(`${rootPath}/${normalizedPath}`.replace(/\/+/g, '/'));
-            const doc = await vscode.workspace.openTextDocument(uri);
+            let cleanPath = filePath.replace(/\\/g, '/');
+            if (cleanPath.startsWith('a/') || cleanPath.startsWith('b/')) {
+                cleanPath = cleanPath.substring(2);
+            }
+            let uri = vscode.Uri.file(`${rootPath}/${cleanPath}`.replace(/\/+/g, '/'));
+            let doc;
+            try {
+                doc = await vscode.workspace.openTextDocument(uri);
+            }
+            catch {
+                const simpleName = cleanPath.split('/').pop() || cleanPath;
+                const files = await vscode.workspace.findFiles(`**/${simpleName}`, null, 5);
+                const matched = files.find(f => f.fsPath.replace(/\\/g, '/').endsWith(cleanPath));
+                if (matched) {
+                    uri = matched;
+                    doc = await vscode.workspace.openTextDocument(uri);
+                }
+                else if (files.length > 0) {
+                    uri = files[0];
+                    doc = await vscode.workspace.openTextDocument(uri);
+                }
+                else {
+                    throw new Error(`File not found: ${filePath}`);
+                }
+            }
             const editor = await vscode.window.showTextDocument(doc);
             if (line > 0) {
                 const lineIdx = Math.max(0, line - 1);
@@ -69,7 +91,7 @@ class ReviewWebviewProvider {
             vscode.window.showWarningMessage(`Could not open file ${filePath}: ${err.message}`);
         }
     }
-    async applyFixToCode(filePath, line, fixCode, issueIndex) {
+    async applyFixToCode(filePath, line, fixCode, issueIndex, endLine, evidence) {
         if (fixCode === undefined || fixCode === null) {
             vscode.window.showWarningMessage('No valid fix code available to apply.');
             return;
@@ -79,27 +101,77 @@ class ReviewWebviewProvider {
             return;
         try {
             const rootPath = workspaceFolders[0].uri.fsPath;
-            const normalizedPath = filePath.replace(/\\/g, '/');
-            const uri = vscode.Uri.file(`${rootPath}/${normalizedPath}`.replace(/\/+/g, '/'));
-            const doc = await vscode.workspace.openTextDocument(uri);
+            let cleanPath = filePath.replace(/\\/g, '/');
+            if (cleanPath.startsWith('a/') || cleanPath.startsWith('b/')) {
+                cleanPath = cleanPath.substring(2);
+            }
+            let uri = vscode.Uri.file(`${rootPath}/${cleanPath}`.replace(/\/+/g, '/'));
+            let doc;
+            try {
+                doc = await vscode.workspace.openTextDocument(uri);
+            }
+            catch {
+                const simpleName = cleanPath.split('/').pop() || cleanPath;
+                const files = await vscode.workspace.findFiles(`**/${simpleName}`, null, 5);
+                const matched = files.find(f => f.fsPath.replace(/\\/g, '/').endsWith(cleanPath));
+                if (matched) {
+                    uri = matched;
+                    doc = await vscode.workspace.openTextDocument(uri);
+                }
+                else if (files.length > 0) {
+                    uri = files[0];
+                    doc = await vscode.workspace.openTextDocument(uri);
+                }
+                else {
+                    throw new Error(`File not found: ${filePath}`);
+                }
+            }
             const editor = await vscode.window.showTextDocument(doc);
             // Clean markdown fences from fixCode
             let cleanFix = fixCode.replace(/^```[a-zA-Z]*\r?\n?/, '').replace(/\r?\n?```$/, '').trim();
             const edit = new vscode.WorkspaceEdit();
-            const lineIdx = Math.max(0, (line || 1) - 1);
-            if (lineIdx < doc.lineCount) {
-                let replaceRange = doc.lineAt(lineIdx).rangeIncludingLineBreak;
-                let replaceRangeWithoutBreak = doc.lineAt(lineIdx).range;
-                // If end_line exists for this issue, we delete the entire block
-                if (issueIndex !== undefined && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
-                    const issue = this._latestReviewData.issues[issueIndex];
-                    if (issue.end_line) {
-                        const endLineIdx = Math.max(lineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.line || 1) - 1));
-                        replaceRange = new vscode.Range(lineIdx, 0, endLineIdx + 1, 0); // Include break for block
-                        replaceRangeWithoutBreak = new vscode.Range(lineIdx, 0, endLineIdx, doc.lineAt(endLineIdx).text.length);
+            let targetLineIdx = Math.max(0, (line || 1) - 1);
+            let endLineIdx = targetLineIdx;
+            if (endLine && endLine > 0) {
+                endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, endLine - 1));
+            }
+            else if (issueIndex !== undefined && issueIndex >= 0 && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
+                const issue = this._latestReviewData.issues[issueIndex];
+                if (issue.end_line || issue.endLine) {
+                    endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.endLine || 1) - 1));
+                }
+            }
+            // Smart alignment with evidence in case lines shifted in buffer
+            if (evidence && evidence.trim() && targetLineIdx < doc.lineCount) {
+                const cleanEv = evidence.trim();
+                const currentText = doc.lineAt(targetLineIdx).text;
+                if (!currentText.includes(cleanEv)) {
+                    for (let delta = -3; delta <= 3; delta++) {
+                        const candidateIdx = targetLineIdx + delta;
+                        if (candidateIdx >= 0 && candidateIdx < doc.lineCount) {
+                            const candidateText = doc.lineAt(candidateIdx).text;
+                            if (candidateText.includes(cleanEv) || cleanEv.includes(candidateText.trim())) {
+                                const diff = candidateIdx - targetLineIdx;
+                                targetLineIdx = candidateIdx;
+                                endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, endLineIdx + diff));
+                                break;
+                            }
+                        }
                     }
                 }
-                const targetLine = doc.lineAt(lineIdx);
+            }
+            if (targetLineIdx < doc.lineCount) {
+                let replaceRange;
+                let replaceRangeWithoutBreak;
+                if (endLineIdx > targetLineIdx) {
+                    replaceRange = new vscode.Range(targetLineIdx, 0, Math.min(doc.lineCount, endLineIdx + 1), 0);
+                    replaceRangeWithoutBreak = new vscode.Range(targetLineIdx, 0, endLineIdx, doc.lineAt(endLineIdx).text.length);
+                }
+                else {
+                    replaceRange = doc.lineAt(targetLineIdx).rangeIncludingLineBreak;
+                    replaceRangeWithoutBreak = doc.lineAt(targetLineIdx).range;
+                }
+                const targetLine = doc.lineAt(targetLineIdx);
                 if (cleanFix === '') {
                     // Deleting line(s)
                     edit.delete(uri, replaceRange);
@@ -115,9 +187,9 @@ class ReviewWebviewProvider {
                     else {
                         const fixLines = cleanFix.split(/\r?\n/);
                         let minIndent = Infinity;
-                        for (const line of fixLines) {
-                            if (line.trim().length > 0) {
-                                const match = line.match(/^(\s*)/);
+                        for (const l of fixLines) {
+                            if (l.trim().length > 0) {
+                                const match = l.match(/^(\s*)/);
                                 const indentLen = match ? match[1].length : 0;
                                 if (indentLen < minIndent)
                                     minIndent = indentLen;
@@ -128,7 +200,7 @@ class ReviewWebviewProvider {
                         const indentedFixLines = fixLines.map(l => {
                             if (l.trim().length === 0)
                                 return leadingIndent;
-                            return leadingIndent + l.substring(minIndent);
+                            return leadingIndent + l.substring(Math.min(l.length, minIndent));
                         });
                         finalReplacement = indentedFixLines.join('\n');
                     }
@@ -142,10 +214,10 @@ class ReviewWebviewProvider {
             const success = await vscode.workspace.applyEdit(edit);
             if (success) {
                 await doc.save();
-                const pos = new vscode.Position(lineIdx, 0);
+                const pos = new vscode.Position(targetLineIdx, 0);
                 editor.selection = new vscode.Selection(pos, pos);
                 editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-                vscode.window.showInformationMessage(`✅ Fix applied successfully to ${filePath}:${line || 1}!`);
+                vscode.window.showInformationMessage(`✅ Fix applied successfully to ${filePath}:${(targetLineIdx + 1)}!`);
                 if (this._view && issueIndex !== undefined) {
                     this._view.webview.postMessage({ type: 'fixApplied', issueIndex });
                 }
@@ -351,6 +423,18 @@ class ReviewWebviewProvider {
     }
     #runBtn:hover {
       background: var(--hover-orange);
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loader-spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255, 90, 20, 0.25);
+      border-top: 3px solid #FF5A14;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
     }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
@@ -631,7 +715,13 @@ class ReviewWebviewProvider {
       runBtn.disabled = true;
       runBtn.style.opacity = '0.5';
       runBtn.style.cursor = 'not-allowed';
+      window.currentResult = null;
       statusDiv.innerHTML = '⚡ <span>Extracting Git diff & orchestrating review agents...</span>';
+      resultContainer.innerHTML = '<div class="card" style="text-align: center; padding: 28px 16px; margin-top: 12px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px;">' +
+        '<div class="loader-spinner" style="margin: 0 auto 12px auto;"></div>' +
+        '<div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Running Multi-Agent Code Review...</div>' +
+        '<div style="font-size: 11px; opacity: 0.75; line-height: 1.5;">Scanning AST & syntax integrity, security SAST rules, acceptance criteria, and code reusability.</div>' +
+        '</div>';
       vscode.postMessage({
         type: 'triggerReview',
         acceptanceCriteria: acInput.value,
@@ -653,7 +743,14 @@ class ReviewWebviewProvider {
         runBtn.disabled = false;
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
-        statusDiv.innerText = '❌ Error: ' + message.message;
+        statusDiv.innerText = '';
+        resultContainer.innerHTML = '<div class="card" style="border-left: 4px solid #ef4444; margin-top: 12px;">' +
+          '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">' +
+          '<span style="font-size: 16px;">❌</span>' +
+          '<strong style="color: #ef4444; font-size: 13px;">Review Execution Failed</strong>' +
+          '</div>' +
+          '<div style="font-size: 11px; opacity: 0.9; line-height: 1.4;">' + escapeHtml(message.message || 'An error occurred while running the review.') + '</div>' +
+          '</div>';
       } else if (message.type === 'indexComplete') {
         // Index সম্পূর্ণ হলে status badge update
         const indexStatusText = document.getElementById('indexStatusText');
@@ -727,7 +824,6 @@ class ReviewWebviewProvider {
       if (res.missingTestsCount !== undefined || (res.missingTests && res.missingTests.length > 0)) {
          html += '<span class="stats-chip">🧪 Missing Tests: <strong>' + (res.missingTestsCount || (res.missingTests ? res.missingTests.length : 0)) + '</strong></span>';
       }
-      html += '<span class="stats-chip">🔁 Code Duplication: <strong>' + (res.duplicates ? res.duplicates.length : 0) + '</strong></span>';
       html += '</div></div>';
 
       // 1. Grounded Findings & Fix Suggestions
@@ -925,22 +1021,33 @@ class ReviewWebviewProvider {
         html += '<div class="section-title">';
         html += '<span>🔁 Duplicate Code Detected (' + res.duplicates.length + ')</span>';
         html += '</div>';
-        res.duplicates.forEach((dup) => {
+        res.duplicates.forEach((dup, dIdx) => {
           html += '<div class="finding-card severity-WARNING" style="border-left-color: #a78bfa;">';
           html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">';
           html += '<span class="badge" style="background: rgba(167,139,250,0.2); color: #c4b5fd; border: 1px solid #7c3aed;">DUPLICATE</span>';
           html += '<span style="font-size: 10px; opacity: 0.8;">Code Duplication</span>';
           html += '</div>';
           html += '<div style="font-size: 11px; margin-bottom: 4px;">';
-          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(dup.file) + '\\', ' + (dup.line || 0) + ')">📄 ' + escapeHtml(dup.file) + (dup.line ? ':' + dup.line : '') + '</span>';
+          const lineStr = dup.end_line && dup.end_line > dup.line ? (dup.line + '-' + dup.end_line) : (dup.line || 0);
+          html += '<span class="clickable-file" onclick="openIssueFile(\\'' + escapeHtml(dup.file) + '\\', ' + (dup.line || 0) + ')">📄 ' + escapeHtml(dup.file) + ':' + lineStr + '</span>';
           html += '</div>';
           html += '<div style="font-weight: 600; font-size: 11px; margin-bottom: 4px;">' + escapeHtml(dup.message) + '</div>';
           if (dup.suggestion) {
             html += '<div class="suggestion-box"><strong>💡 Fix:</strong> ' + escapeHtml(dup.suggestion) + '</div>';
           }
-          if (dup.duplicate_in_file) {
-            html += '<div class="btn-row"><button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(dup.duplicate_in_file) + '\\', ' + (dup.duplicate_at_line || 0) + ')">📂 Go to Original</button></div>';
+          if (dup.fix_code) {
+            html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">🔧 Suggested Fix Code:</div>';
+            html += '<pre class="code-box"><code>' + escapeHtml(dup.fix_code) + '</code></pre>';
           }
+          html += '<div class="btn-row">';
+          if (dup.fix_code) {
+            html += '<button class="btn-sm btn-success" onclick="applyDuplicateFix(' + dIdx + ')">⚡ Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyDuplicateFix(' + dIdx + ')">📋 Copy Fix</button>';
+          }
+          if (dup.duplicate_in_file) {
+            html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(dup.duplicate_in_file) + '\\', ' + (dup.duplicate_at_line || 0) + ')">📂 Go to Original</button>';
+          }
+          html += '</div>';
           html += '</div>';
         });
       }
@@ -960,8 +1067,36 @@ class ReviewWebviewProvider {
           type: 'applyFix',
           file: file,
           line: line,
+          endLine: issue.end_line || issue.endLine || 0,
+          evidence: issue.evidence || '',
           fixCode: issue.fix_code,
           issueIndex: issueIndex
+        });
+      }
+    }
+
+    function applyDuplicateFix(dIdx) {
+      if (window.currentResult && window.currentResult.duplicates && window.currentResult.duplicates[dIdx]) {
+        const dup = window.currentResult.duplicates[dIdx];
+        vscode.postMessage({
+          type: 'applyFix',
+          file: dup.file,
+          line: dup.line || 1,
+          endLine: dup.end_line || dup.endLine || dup.line || 1,
+          evidence: dup.evidence || '',
+          fixCode: dup.fix_code,
+          issueIndex: -1
+        });
+      }
+    }
+
+    function copyDuplicateFix(dIdx) {
+      if (window.currentResult && window.currentResult.duplicates && window.currentResult.duplicates[dIdx]) {
+        const dup = window.currentResult.duplicates[dIdx];
+        vscode.postMessage({
+          type: 'copyToClipboard',
+          text: dup.fix_code,
+          message: 'Copied fix code to clipboard!'
         });
       }
     }
