@@ -106,7 +106,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       if (lineIdx < doc.lineCount) {
         let replaceRange: vscode.Range = doc.lineAt(lineIdx).rangeIncludingLineBreak;
         let replaceRangeWithoutBreak: vscode.Range = doc.lineAt(lineIdx).range;
-        
+
         // If end_line exists for this issue, we delete the entire block
         if (issueIndex !== undefined && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
           const issue = this._latestReviewData.issues[issueIndex];
@@ -283,7 +283,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   private async exportDocxReport(sessionId: string | undefined, reviewData: any) {
     try {
       const workspaceFolders = vscode.workspace.workspaceFolders;
-      const defaultUri = workspaceFolders && workspaceFolders.length > 0 
+      const defaultUri = workspaceFolders && workspaceFolders.length > 0
         ? vscode.Uri.joinPath(workspaceFolders[0].uri, `Code_Review_Report_${sessionId || 'Unsaved'}.docx`)
         : undefined;
 
@@ -297,7 +297,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
 
       const config = vscode.workspace.getConfiguration('aiCodeReview');
       const backendUrl = config.get<string>('backendUrl', 'http://localhost:5000');
-      
+
       let response;
       if (sessionId) {
         response = await ((fetch as unknown as (
@@ -318,7 +318,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       if (!response.ok) {
         throw new Error(`Failed to export report: ${response.statusText}`);
       }
-      
+
       const arrayBuffer = await response.arrayBuffer();
       await vscode.workspace.fs.writeFile(saveUri, new Uint8Array(arrayBuffer));
 
@@ -387,18 +387,6 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
     #runBtn:hover {
       background: var(--hover-orange);
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .loader-spinner {
-      width: 28px;
-      height: 28px;
-      border: 3px solid rgba(230,107,34,0.25);
-      border-top: 3px solid #e66b22;
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
     }
     button.btn-sm { padding: 4px 8px; font-size: 11px; }
     button.btn-secondary {
@@ -538,15 +526,12 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       background: var(--vscode-textCodeBlock-background, #1e1e1e);
       border: 1px solid var(--border-color);
       border-radius: 4px;
-      padding: 8px 10px;
+      padding: 6px 8px;
       margin-top: 6px;
-      font-family: var(--vscode-editor-font-family, 'JetBrains Mono', Consolas, monospace);
+      font-family: var(--vscode-editor-font-family, monospace);
       font-size: 11px;
-      line-height: 1.45;
       white-space: pre-wrap;
-      word-break: normal;
-      overflow-wrap: break-word;
-      tab-size: 4;
+      word-break: break-all;
       color: var(--vscode-editor-foreground, #d4d4d4);
       overflow-x: auto;
     }
@@ -682,16 +667,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       runBtn.disabled = true;
       runBtn.style.opacity = '0.5';
       runBtn.style.cursor = 'not-allowed';
-      
-      // Reset previous state and clear old cards immediately
-      window.currentResult = null;
       statusDiv.innerHTML = '⚡ <span>Extracting Git diff & orchestrating review agents...</span>';
-      resultContainer.innerHTML = '<div class="card" style="text-align: center; padding: 28px 16px; margin-top: 12px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px;">' +
-        '<div class="loader-spinner" style="margin: 0 auto 12px auto;"></div>' +
-        '<div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Running Multi-Agent Code Review...</div>' +
-        '<div style="font-size: 11px; opacity: 0.75; line-height: 1.5;">Scanning AST & syntax integrity, security SAST rules, acceptance criteria, and code reusability.</div>' +
-        '</div>';
-
       vscode.postMessage({
         type: 'triggerReview',
         acceptanceCriteria: acInput.value,
@@ -713,14 +689,7 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         runBtn.disabled = false;
         runBtn.style.opacity = '1';
         runBtn.style.cursor = 'pointer';
-        statusDiv.innerText = '';
-        resultContainer.innerHTML = '<div class="card" style="border-left: 4px solid #ef4444; margin-top: 12px;">' +
-          '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">' +
-          '<span style="font-size: 16px;">❌</span>' +
-          '<strong style="color: #ef4444; font-size: 13px;">Review Execution Failed</strong>' +
-          '</div>' +
-          '<div style="font-size: 11px; opacity: 0.9; line-height: 1.4;">' + escapeHtml(message.message || 'An error occurred while running the review.') + '</div>' +
-          '</div>';
+        statusDiv.innerText = '❌ Error: ' + message.message;
       } else if (message.type === 'indexComplete') {
         // Index সম্পূর্ণ হলে status badge update
         const indexStatusText = document.getElementById('indexStatusText');
@@ -794,7 +763,6 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       if (res.missingTestsCount !== undefined || (res.missingTests && res.missingTests.length > 0)) {
          html += '<span class="stats-chip">🧪 Missing Tests: <strong>' + (res.missingTestsCount || (res.missingTests ? res.missingTests.length : 0)) + '</strong></span>';
       }
-      html += '<span class="stats-chip">🔁 Code Duplication: <strong>' + (res.duplicates ? res.duplicates.length : 0) + '</strong></span>';
       html += '</div></div>';
 
       // 1. Grounded Findings & Fix Suggestions
@@ -1095,5 +1063,9 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   </script>
 </body>
 </html>`;
+  }
+}
+</body>
+  </html>`;
   }
 }
