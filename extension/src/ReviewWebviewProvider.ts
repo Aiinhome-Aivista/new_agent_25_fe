@@ -153,18 +153,27 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
         }
       }
 
-        // If end_line exists for this issue, we delete the entire block
-        if (issueIndex !== undefined && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
-          const issue = this._latestReviewData.issues[issueIndex];
-          if (issue.end_line && issue.end_line > (issue.line || 1)) {
-            const isSingleLineFix = !cleanFix.includes('\n');
-            if (isSingleLineFix) {
-              console.warn("Ignored end_line because fix_code is only a single line.");
-            } else {
-              const endLineIdx = Math.max(lineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.line || 1) - 1));
-              replaceRange = new vscode.Range(lineIdx, 0, endLineIdx + 1, 0); // Include break for block
-              replaceRangeWithoutBreak = new vscode.Range(lineIdx, 0, endLineIdx, doc.lineAt(endLineIdx).text.length);
-            }
+      if (evidence) {
+        const evidenceLines = evidence.trim().split(/\r?\n/);
+        const firstEvidenceLine = evidenceLines[0].trim();
+        
+        // Search around targetLineIdx for the exact evidence text
+        const searchRange = 20; // 20 lines up and down
+        let foundMatch = false;
+        for (let offset = 0; offset <= searchRange; offset++) {
+          // Check down
+          if (targetLineIdx + offset < doc.lineCount && doc.lineAt(targetLineIdx + offset).text.includes(firstEvidenceLine)) {
+            targetLineIdx = targetLineIdx + offset;
+            endLineIdx = targetLineIdx + evidenceLines.length - 1;
+            foundMatch = true;
+            break;
+          }
+          // Check up
+          if (targetLineIdx - offset >= 0 && doc.lineAt(targetLineIdx - offset).text.includes(firstEvidenceLine)) {
+            targetLineIdx = targetLineIdx - offset;
+            endLineIdx = targetLineIdx + evidenceLines.length - 1;
+            foundMatch = true;
+            break;
           }
         }
       }
