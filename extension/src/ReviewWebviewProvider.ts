@@ -143,37 +143,63 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
       const edit = new vscode.WorkspaceEdit();
       let targetLineIdx = Math.max(0, (line || 1) - 1);
       let endLineIdx = targetLineIdx;
+      let hasExplicitEndLine = false;
 
       if (endLine && endLine > 0) {
         endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, endLine - 1));
+        hasExplicitEndLine = true;
       } else if (issueIndex !== undefined && issueIndex >= 0 && this._latestReviewData && this._latestReviewData.issues && this._latestReviewData.issues[issueIndex]) {
         const issue = this._latestReviewData.issues[issueIndex];
         if (issue.end_line || issue.endLine) {
           endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.endLine || 1) - 1));
+          hasExplicitEndLine = true;
         }
       }
 
+      const originalTargetLineIdx = targetLineIdx;
+      const originalEndLineIdx = endLineIdx;
+
       if (evidence) {
         const evidenceLines = evidence.trim().split(/\r?\n/);
-        const firstEvidenceLine = evidenceLines[0].trim();
-        
-        // Search around targetLineIdx for the exact evidence text
-        const searchRange = 20; // 20 lines up and down
-        let foundMatch = false;
-        for (let offset = 0; offset <= searchRange; offset++) {
-          // Check down
-          if (targetLineIdx + offset < doc.lineCount && doc.lineAt(targetLineIdx + offset).text.includes(firstEvidenceLine)) {
-            targetLineIdx = targetLineIdx + offset;
-            endLineIdx = targetLineIdx + evidenceLines.length - 1;
-            foundMatch = true;
-            break;
-          }
-          // Check up
-          if (targetLineIdx - offset >= 0 && doc.lineAt(targetLineIdx - offset).text.includes(firstEvidenceLine)) {
-            targetLineIdx = targetLineIdx - offset;
-            endLineIdx = targetLineIdx + evidenceLines.length - 1;
-            foundMatch = true;
-            break;
+        if (evidenceLines.length > 0 && evidenceLines[0].trim() !== '') {
+          // Search around targetLineIdx for the exact evidence text sequentially
+          const searchRange = 20; // 20 lines up and down
+          let foundMatch = false;
+
+          const checkMatchAt = (startIdx: number) => {
+             if (startIdx < 0 || startIdx + evidenceLines.length > doc.lineCount) return false;
+             for (let i = 0; i < evidenceLines.length; i++) {
+                 const evLine = evidenceLines[i].trim();
+                 if (evLine.length > 0 && !doc.lineAt(startIdx + i).text.includes(evLine)) {
+                     return false;
+                 }
+             }
+             return true;
+          };
+
+          for (let offset = 0; offset <= searchRange; offset++) {
+            // Check down
+            if (checkMatchAt(targetLineIdx + offset)) {
+              targetLineIdx = targetLineIdx + offset;
+              if (!hasExplicitEndLine) {
+                endLineIdx = targetLineIdx + evidenceLines.length - 1;
+              } else {
+                endLineIdx = Math.min(doc.lineCount - 1, targetLineIdx + (originalEndLineIdx - originalTargetLineIdx));
+              }
+              foundMatch = true;
+              break;
+            }
+            // Check up
+            if (offset > 0 && checkMatchAt(targetLineIdx - offset)) {
+              targetLineIdx = targetLineIdx - offset;
+              if (!hasExplicitEndLine) {
+                endLineIdx = targetLineIdx + evidenceLines.length - 1;
+              } else {
+                endLineIdx = Math.min(doc.lineCount - 1, targetLineIdx + (originalEndLineIdx - originalTargetLineIdx));
+              }
+              foundMatch = true;
+              break;
+            }
           }
         }
       }
