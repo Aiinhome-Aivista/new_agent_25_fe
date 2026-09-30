@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { GitService } from './GitService';
 import { DiagnosticsManager } from './DiagnosticsManager';
+import { exec } from 'child_process';
+import * as util from 'util';
+
+const execAsync = util.promisify(exec);
 
 export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'aiCodeReview.reviewView';
@@ -279,13 +283,56 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public async executeReview(acceptanceCriteria: string = '', language: string = 'typescript') {
+  private async getJavaVersion(): Promise<string | undefined> {
+    try {
+      // First try to check if pom.xml exists to get target version
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (workspaceFolders && workspaceFolders.length > 0) {
+        const rootPath = workspaceFolders[0].uri.fsPath;
+        try {
+          const pomUri = vscode.Uri.file(`${rootPath}/pom.xml`);
+          const pomDoc = await vscode.workspace.openTextDocument(pomUri);
+          const text = pomDoc.getText();
+          const match = text.match(/<java\.version>(.*?)<\/java\.version>/);
+          if (match && match[1]) {
+            return match[1];
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      
+      // Fallback to java -version command
+      const { stderr } = await execAsync('java -version');
+      const match = stderr.match(/version "([^"]+)"/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    } catch (err) {
+      console.warn('Could not determine Java version', err);
+    }
+    return undefined;
+  }
+
+  public async executeReview(acceptanceCriteria: string = '', language?: string) {
     if (!this._view) return;
 
     this._view.webview.postMessage({ type: 'statusUpdate', status: 'COLLECTING_DIFF' });
 
     const diff = await GitService.getWorkingDiff();
     const branch = await GitService.getCurrentBranch();
+
+    if (!language) {
+      if (diff.includes('.java')) {
+        language = 'java';
+      } else if (diff.includes('.py')) {
+        language = 'python';
+      } else if (diff.includes('.go')) {
+        language = 'go';
+      } else {
+        language = 'typescript';
+      }
+    }
 
     if (!diff || !diff.trim()) {
       vscode.window.showWarningMessage('AI Code Review: No working git diff detected. Please modify or stage files first.');
@@ -334,16 +381,19 @@ export class ReviewWebviewProvider implements vscode.WebviewViewProvider {
     const backendUrl = config.get<string>('backendUrl', 'http://localhost:5000');
 
     try {
-      const response = await (fetch(`${backendUrl}/api/v1/reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          git_diff: diff,
-          acceptance_criteria: acceptanceCriteria,
-          language: language,
-          branch: branch,
-          repository_name: vscode.workspace.name || 'local-repo'
-        })
+        const javaVersion = language.toLowerCase() === 'java' ? await this.getJavaVersion() : undefined;
+
+        const response = await (fetch(`${backendUrl}/api/v1/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            git_diff: diff,
+            acceptance_criteria: acceptanceCriteria,
+            language: language,
+            language_version: javaVersion,
+            branch: branch,
+            repository_name: vscode.workspace.name || 'local-repo'
+          })
       }) as unknown as Promise<{ ok: boolean; status: number; json(): Promise<any> }>);
 
       if (!response.ok) {
