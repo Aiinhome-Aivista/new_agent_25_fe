@@ -3,6 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReviewWebviewProvider = void 0;
 const vscode = require("vscode");
 const GitService_1 = require("./GitService");
+const child_process_1 = require("child_process");
+const util = require("util");
+const execAsync = util.promisify(child_process_1.exec);
 class ReviewWebviewProvider {
     constructor(_extensionUri, _diagnosticsManager) {
         this._extensionUri = _extensionUri;
@@ -141,22 +144,26 @@ class ReviewWebviewProvider {
                     endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, (issue.end_line || issue.endLine || 1) - 1));
                 }
             }
-            // Smart alignment with evidence in case lines shifted in buffer
-            if (evidence && evidence.trim() && targetLineIdx < doc.lineCount) {
-                const cleanEv = evidence.trim();
-                const currentText = doc.lineAt(targetLineIdx).text;
-                if (!currentText.includes(cleanEv)) {
-                    for (let delta = -3; delta <= 3; delta++) {
-                        const candidateIdx = targetLineIdx + delta;
-                        if (candidateIdx >= 0 && candidateIdx < doc.lineCount) {
-                            const candidateText = doc.lineAt(candidateIdx).text;
-                            if (candidateText.includes(cleanEv) || cleanEv.includes(candidateText.trim())) {
-                                const diff = candidateIdx - targetLineIdx;
-                                targetLineIdx = candidateIdx;
-                                endLineIdx = Math.max(targetLineIdx, Math.min(doc.lineCount - 1, endLineIdx + diff));
-                                break;
-                            }
-                        }
+            if (evidence) {
+                const evidenceLines = evidence.trim().split(/\r?\n/);
+                const firstEvidenceLine = evidenceLines[0].trim();
+                // Search around targetLineIdx for the exact evidence text
+                const searchRange = 20; // 20 lines up and down
+                let foundMatch = false;
+                for (let offset = 0; offset <= searchRange; offset++) {
+                    // Check down
+                    if (targetLineIdx + offset < doc.lineCount && doc.lineAt(targetLineIdx + offset).text.includes(firstEvidenceLine)) {
+                        targetLineIdx = targetLineIdx + offset;
+                        endLineIdx = targetLineIdx + evidenceLines.length - 1;
+                        foundMatch = true;
+                        break;
+                    }
+                    // Check up
+                    if (targetLineIdx - offset >= 0 && doc.lineAt(targetLineIdx - offset).text.includes(firstEvidenceLine)) {
+                        targetLineIdx = targetLineIdx - offset;
+                        endLineIdx = targetLineIdx + evidenceLines.length - 1;
+                        foundMatch = true;
+                        break;
                     }
                 }
             }
@@ -180,30 +187,24 @@ class ReviewWebviewProvider {
                     // Preserve original leading whitespace/indentation
                     const leadingIndentMatch = targetLine.text.match(/^(\s*)/);
                     const leadingIndent = leadingIndentMatch ? leadingIndentMatch[1] : '';
-                    let finalReplacement = '';
-                    if (targetLine.text.includes('0.0.0.0') && (cleanFix.includes('127.0.0.1') || cleanFix.includes('host=')) && !cleanFix.includes('uvicorn.run') && !cleanFix.includes('app.run')) {
-                        finalReplacement = targetLine.text.replace(/['"]0\.0\.0\.0['"]/, '"127.0.0.1"');
-                    }
-                    else {
-                        const fixLines = cleanFix.split(/\r?\n/);
-                        let minIndent = Infinity;
-                        for (const l of fixLines) {
-                            if (l.trim().length > 0) {
-                                const match = l.match(/^(\s*)/);
-                                const indentLen = match ? match[1].length : 0;
-                                if (indentLen < minIndent)
-                                    minIndent = indentLen;
-                            }
+                    const fixLines = cleanFix.split(/\r?\n/);
+                    let minIndent = Infinity;
+                    for (const l of fixLines) {
+                        if (l.trim().length > 0) {
+                            const match = l.match(/^(\s*)/);
+                            const indentLen = match ? match[1].length : 0;
+                            if (indentLen < minIndent)
+                                minIndent = indentLen;
                         }
-                        if (minIndent === Infinity)
-                            minIndent = 0;
-                        const indentedFixLines = fixLines.map(l => {
-                            if (l.trim().length === 0)
-                                return leadingIndent;
-                            return leadingIndent + l.substring(Math.min(l.length, minIndent));
-                        });
-                        finalReplacement = indentedFixLines.join('\n');
                     }
+                    if (minIndent === Infinity)
+                        minIndent = 0;
+                    const indentedFixLines = fixLines.map(l => {
+                        if (l.trim().length === 0)
+                            return leadingIndent;
+                        return leadingIndent + l.substring(Math.min(l.length, minIndent));
+                    });
+                    const finalReplacement = indentedFixLines.join('\n');
                     edit.replace(uri, replaceRangeWithoutBreak, finalReplacement);
                 }
             }
@@ -241,6 +242,37 @@ class ReviewWebviewProvider {
                 totalChunks: result.totalChunks
             });
         }
+    }
+    async getJavaVersion() {
+        try {
+            // First try to check if pom.xml exists to get target version
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (workspaceFolders && workspaceFolders.length > 0) {
+                const rootPath = workspaceFolders[0].uri.fsPath;
+                try {
+                    const pomUri = vscode.Uri.file(`${rootPath}/pom.xml`);
+                    const pomDoc = await vscode.workspace.openTextDocument(pomUri);
+                    const text = pomDoc.getText();
+                    const match = text.match(/<java\.version>(.*?)<\/java\.version>/);
+                    if (match && match[1]) {
+                        return match[1];
+                    }
+                }
+                catch (e) {
+                    // ignore
+                }
+            }
+            // Fallback to java -version command
+            const { stderr } = await execAsync('java -version');
+            const match = stderr.match(/version "([^"]+)"/);
+            if (match && match[1]) {
+                return match[1];
+            }
+        }
+        catch (err) {
+            console.warn('Could not determine Java version', err);
+        }
+        return undefined;
     }
     async executeReview(acceptanceCriteria = '', language = 'typescript') {
         if (!this._view)
@@ -289,6 +321,7 @@ class ReviewWebviewProvider {
         const config = vscode.workspace.getConfiguration('aiCodeReview');
         const backendUrl = config.get('backendUrl', 'http://localhost:5000');
         try {
+            const javaVersion = language.toLowerCase() === 'java' ? await this.getJavaVersion() : undefined;
             const response = await fetch(`${backendUrl}/api/v1/reviews`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -296,6 +329,7 @@ class ReviewWebviewProvider {
                     git_diff: diff,
                     acceptance_criteria: acceptanceCriteria,
                     language: language,
+                    language_version: javaVersion,
                     branch: branch,
                     repository_name: vscode.workspace.name || 'local-repo'
                 })
@@ -795,12 +829,7 @@ class ReviewWebviewProvider {
 
     function isLikelyCode(text) {
       if (text === '') return true;
-      if (!text || typeof text !== 'string') return false;
-      const t = text.trim();
-      // If it looks like an English sentence explaining what to do
-      if (/^(ensure|make sure|you should|please|change the|it is recommended|import .* at the top|before the line)/i.test(t)) {
-        return false;
-      }
+      if (text === undefined || text === null) return false;
       return true;
     }
 
@@ -872,8 +901,8 @@ class ReviewWebviewProvider {
           }
 
           // Suggested Fix Code
-          const hasValidCode = (issue.fix_code !== undefined && issue.fix_code !== null) && isLikelyCode(issue.fix_code);
-          if (hasValidCode) {
+          const hasFixCode = (issue.fix_code !== undefined && issue.fix_code !== null);
+          if (hasFixCode) {
             html += '<div style="margin-top: 6px; font-weight: 600; font-size: 10px; opacity: 0.9;">🔧 Suggested Fix Code:</div>';
             if (issue.fix_code === '') {
               html += '<pre class="code-box" style="color: #f87171;"><code>[Delete / Remove this line]</code></pre>';
@@ -884,11 +913,11 @@ class ReviewWebviewProvider {
 
           // Action Buttons
           html += '<div class="btn-row">';
-          if (hasValidCode) {
-            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')"> Apply Fix</button>';
-            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')"> Copy Fix</button>';
+          if (hasFixCode) {
+            html += '<button class="btn-sm btn-success" onclick="applyFix(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ', ' + idx + ')">⚡ Apply Fix</button>';
+            html += '<button class="btn-sm btn-secondary" onclick="copyFix(' + idx + ')">📋 Copy Fix</button>';
           }
-          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')"> Open File</button>';
+          html += '<button class="btn-sm btn-secondary" onclick="openIssueFile(\\'' + escapeHtml(issue.file) + '\\', ' + (issue.line || 0) + ')">📂 Open File</button>';
           html += '</div>';
 
           html += '</div>';
